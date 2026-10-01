@@ -1,7 +1,9 @@
 # Python
+.venv/
+venv/
+backend/.venv/
 __pycache__/
 *.py[cod]
-*.pyo
 
 # Django
 *.log
@@ -11,8 +13,9 @@ staticfiles/
 
 # Environment
 .env
-.venv/
-venv/
+.env.docker
+.env.*
+!.env.example
 
 # Node
 node_modules/
