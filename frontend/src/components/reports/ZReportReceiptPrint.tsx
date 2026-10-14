@@ -1,4 +1,5 @@
 import type { ZReportData } from '../../api/reports';
+import { useSettingsStore } from '../../store/settingsStore';
 
 interface ZReportReceiptPrintProps {
   data: ZReportData;
@@ -6,6 +7,7 @@ interface ZReportReceiptPrintProps {
 }
 
 export default function ZReportReceiptPrint({ data, operatorName }: ZReportReceiptPrintProps) {
+  const { settings } = useSettingsStore();
   if (!data) return null;
 
   const formatDate = (isoString: string) => {
@@ -26,7 +28,9 @@ export default function ZReportReceiptPrint({ data, operatorName }: ZReportRecei
     >
       {/* Header */}
       <div className="text-center mb-3 border-b border-black pb-3 border-dashed">
-        <h1 className="text-base font-bold uppercase tracking-wider mb-1 text-black">BIGHRISSEN PHONE</h1>
+        <h1 className="text-base font-bold uppercase tracking-wider mb-1 text-black">
+          {settings?.store_name || 'BIGHRISSEN PHONE'}
+        </h1>
         <p className="text-[11px] font-bold text-black">CLÔTURE DE CAISSE (TICKET Z)</p>
         <p className="text-[10px] text-black">Période: {data.period.start_date} {data.period.is_single_day ? '' : `au ${data.period.end_date}`}</p>
         <p className="text-[10px] text-black">Généré le: {formatDate(data.period.generated_at)}</p>

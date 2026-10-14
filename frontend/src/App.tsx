@@ -13,10 +13,13 @@ import RepairsPage from './pages/RepairsPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportsPage from './pages/ReportsPage';
 import AuditLogsPage from './pages/AuditLogsPage';
+import SettingsPage from './pages/SettingsPage';
+import { useSettingsStore } from './store/settingsStore';
 import { Loader2 } from 'lucide-react';
 
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const { setAuth, setOperator, operator, setLoading, isLoading } = useAuthStore();
+  const { fetchSettings } = useSettingsStore();
 
   useEffect(() => {
     let mounted = true;
@@ -33,6 +36,8 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
               if (mounted) setOperator(res.operator);
             }).catch(() => {});
           }
+          // Preload store settings for receipts and configuration
+          fetchSettings().catch(() => {});
         }
       } catch (err) {
         if (mounted) {
@@ -138,6 +143,12 @@ function App() {
           <Route path="/audit-logs" element={
             <ProtectedRoute>
               <AuditLogsPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           } />
           

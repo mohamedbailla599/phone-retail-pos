@@ -1,11 +1,14 @@
 
 
+import { useSettingsStore } from '../../store/settingsStore';
+
 interface ReceiptPrintProps {
   transaction: any;
   operator: any;
 }
 
 export default function ReceiptPrint({ transaction, operator }: ReceiptPrintProps) {
+  const { settings } = useSettingsStore();
   if (!transaction) return null;
 
   return (
@@ -17,9 +20,9 @@ export default function ReceiptPrint({ transaction, operator }: ReceiptPrintProp
         `}
       </style>
       <div className="text-center mb-4 border-b border-black pb-4 border-dashed">
-        <h1 className="text-lg font-bold uppercase tracking-wider mb-1">Bighrissen Phone</h1>
-        <p>123 Tech Street, City</p>
-        <p>Tel: +212 123 456 789</p>
+        <h1 className="text-lg font-bold uppercase tracking-wider mb-1">{settings?.store_name || 'Bighrissen Phone'}</h1>
+        <p>{settings?.address || 'Boulevard Hassan II, Agadir'}</p>
+        <p>Tel: {settings?.phone_number || '+212 600-000000'}</p>
       </div>
 
       <div className="mb-4">
@@ -89,9 +92,15 @@ export default function ReceiptPrint({ transaction, operator }: ReceiptPrintProp
       </div>
 
       <div className="text-center text-[10px]">
-        <p className="font-bold mb-1">Thank you for your purchase!</p>
-        <p>Warranty terms apply as per conditions.</p>
-        <p>No refund or exchange without this receipt.</p>
+        {settings?.receipt_footer_message ? (
+          <p className="font-semibold mb-1 whitespace-pre-line">{settings.receipt_footer_message}</p>
+        ) : (
+          <>
+            <p className="font-bold mb-1">Merci pour votre visite !</p>
+            <p>Les articles vendus sont garantis selon conditions.</p>
+          </>
+        )}
+        <p className="text-[9px] text-gray-700">Aucun remboursement ou échange sans ce ticket de caisse.</p>
       </div>
     </div>
   );

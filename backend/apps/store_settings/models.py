@@ -38,6 +38,23 @@ class StoreSettings(models.Model):
         default="BP",
     )
 
+    phone_number = models.CharField(
+        max_length=50,
+        blank=True,
+        default="+212 600-000000",
+    )
+
+    address = models.CharField(
+        max_length=255,
+        blank=True,
+        default="Boulevard Hassan II, Agadir",
+    )
+
+    receipt_footer_message = models.TextField(
+        blank=True,
+        default="Merci pour votre visite ! Les articles vendus sont garantis selon nos conditions générales de vente.",
+    )
+
     updated_by = models.ForeignKey(
         "users.User",
         on_delete=models.PROTECT,

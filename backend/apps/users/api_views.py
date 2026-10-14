@@ -3,9 +3,12 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.models import AuditLog
 from apps.users.models import User
 from apps.users.serializers import (
+    CreateOperatorSerializer,
     LoginSerializer,
+    OperatorManageSerializer,
     POSUserSerializer,
     SelectOperatorSerializer,
 )
@@ -125,3 +128,131 @@ class POSOperatorClearView(APIView):
     def post(self, request):
         clear_operator_context(request)
         return Response({"operator": None}, status=status.HTTP_200_OK)
+
+
+class POSOperatorManageListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        operators = User.objects.filter(
+            is_pos_operator=True,
+        ).order_by("-is_active", "first_name", "last_name", "username")
+        return Response(OperatorManageSerializer(operators, many=True).data, status=status.HTTP_200_OK)
+
+
+class POSOperatorCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = CreateOperatorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        user = User.objects.create(
+            username=data["username"],
+            first_name=data["first_name"],
+            last_name=data.get("last_name", ""),
+            is_pos_operator=True,
+            role=User.Role.OWNER,
+            is_active=True,
+        )
+        password = data.get("password")
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+        user.save()
+
+        try:
+            from apps.users.services.operator_context import get_required_operator
+            actor = get_required_operator(request)
+        except Exception:
+            actor = getattr(request, "user", None)
+
+        if actor:
+            try:
+                AuditLog.objects.create(
+                    actor=actor,
+                    action=AuditLog.Action.USER_CREATED,
+                    entity_type="User",
+                    entity_id=user.id,
+                    new_values={
+                        "username": user.username,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                    },
+                    reason=f"Nouvel opérateur caisse créé: {user.get_full_name() or user.username}",
+                )
+            except Exception:
+                pass
+
+        return Response(OperatorManageSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class POSOperatorUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk, is_pos_operator=True)
+        except User.DoesNotExist:
+            return Response({"detail": "Opérateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        is_active = request.data.get("is_active")
+        first_name = request.data.get("first_name")
+        last_name = request.data.get("last_name")
+
+        old_values = {}
+        new_values = {}
+
+        if is_active is not None and is_active != user.is_active:
+            if not is_active:
+                active_count = User.objects.filter(is_pos_operator=True, is_active=True).count()
+                if active_count <= 1:
+                    return Response(
+                        {"detail": "Impossible de désactiver le dernier opérateur caisse actif."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            old_values["is_active"] = user.is_active
+            user.is_active = bool(is_active)
+            new_values["is_active"] = user.is_active
+
+        if first_name is not None and first_name.strip():
+            old_values["first_name"] = user.first_name
+            user.first_name = first_name.strip()
+            new_values["first_name"] = user.first_name
+
+        if last_name is not None:
+            old_values["last_name"] = user.last_name
+            user.last_name = last_name.strip()
+            new_values["last_name"] = user.last_name
+
+        user.save()
+
+        try:
+            from apps.users.services.operator_context import get_required_operator
+            actor = get_required_operator(request)
+        except Exception:
+            actor = getattr(request, "user", None)
+
+        if actor and old_values:
+            try:
+                action = (
+                    AuditLog.Action.USER_DEACTIVATED
+                    if "is_active" in new_values and not new_values["is_active"]
+                    else AuditLog.Action.USER_UPDATED
+                )
+                AuditLog.objects.create(
+                    actor=actor,
+                    action=action,
+                    entity_type="User",
+                    entity_id=user.id,
+                    old_values=old_values,
+                    new_values=new_values,
+                    reason=f"Opérateur {user.username} mis à jour",
+                )
+            except Exception:
+                pass
+
+        return Response(OperatorManageSerializer(user).data, status=status.HTTP_200_OK)
+
