@@ -519,18 +519,13 @@ export default function CreateReservationModal({
             <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
               Annuler
             </Button>
-            <Button type="submit" variant="primary" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Création en cours...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Valider la Réservation
-                </>
-              )}
+            <Button
+              type="submit"
+              variant="primary"
+              loading={submitting}
+              icon={<CheckCircle className="w-4 h-4" />}
+            >
+              {submitting ? 'Création en cours...' : 'Valider la Réservation'}
             </Button>
           </div>
         </form>

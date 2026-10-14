@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { reservationsApi, type Reservation } from '../../api/reservations';
-import { PlusCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { PlusCircle, AlertCircle } from 'lucide-react';
 
 interface AddDepositModalProps {
   isOpen: boolean;
@@ -147,18 +147,13 @@ export default function AddDepositModal({
           <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
             Annuler
           </Button>
-          <Button type="submit" variant="primary" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Enregistrement...
-              </>
-            ) : (
-              <>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Enregistrer le Versement
-              </>
-            )}
+          <Button
+            type="submit"
+            variant="primary"
+            loading={submitting}
+            icon={<PlusCircle className="w-4 h-4" />}
+          >
+            {submitting ? 'Enregistrement...' : 'Enregistrer le Versement'}
           </Button>
         </div>
       </form>

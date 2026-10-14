@@ -3,7 +3,7 @@ import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import { customersApi, type Customer } from '../../api/customers';
-import { User, Phone, MapPin, CreditCard, FileText, Loader2 } from 'lucide-react';
+import { User, Phone, MapPin, CreditCard, FileText } from 'lucide-react';
 
 interface CreateCustomerModalProps {
   isOpen: boolean;
@@ -133,17 +133,11 @@ export default function CreateCustomerModal({
           <Button
             type="submit"
             variant="primary"
-            disabled={loading || !fullName.trim() || !phoneNumber.trim()}
+            loading={loading}
+            disabled={!fullName.trim() || !phoneNumber.trim()}
             className="min-w-[120px]"
           >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Création...
-              </>
-            ) : (
-              'Enregistrer'
-            )}
+            {loading ? 'Création...' : 'Enregistrer'}
           </Button>
         </div>
       </form>

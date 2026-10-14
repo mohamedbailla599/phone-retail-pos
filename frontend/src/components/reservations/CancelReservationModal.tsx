@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { reservationsApi, type Reservation } from '../../api/reservations';
-import { AlertTriangle, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { AlertTriangle, AlertCircle, RotateCcw } from 'lucide-react';
 
 interface CancelReservationModalProps {
   isOpen: boolean;
@@ -129,18 +129,13 @@ export default function CancelReservationModal({
           <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
             Retour
           </Button>
-          <Button type="submit" variant="danger" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Annulation...
-              </>
-            ) : (
-              <>
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Confirmer l'Annulation
-              </>
-            )}
+          <Button
+            type="submit"
+            variant="danger"
+            loading={submitting}
+            icon={<RotateCcw className="w-4 h-4" />}
+          >
+            {submitting ? 'Annulation...' : "Confirmer l'Annulation"}
           </Button>
         </div>
       </form>

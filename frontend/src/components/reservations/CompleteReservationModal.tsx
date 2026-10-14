@@ -3,7 +3,7 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { reservationsApi, type Reservation } from '../../api/reservations';
-import { CheckCircle, AlertCircle, Loader2, Smartphone, User } from 'lucide-react';
+import { CheckCircle, AlertCircle, Smartphone, User } from 'lucide-react';
 
 interface CompleteReservationModalProps {
   isOpen: boolean;
@@ -174,18 +174,13 @@ export default function CompleteReservationModal({
           <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
             Annuler
           </Button>
-          <Button type="submit" variant="primary" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Validation en cours...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Confirmer la Vente & Remise
-              </>
-            )}
+          <Button
+            type="submit"
+            variant="primary"
+            loading={submitting}
+            icon={<CheckCircle className="w-4 h-4" />}
+          >
+            {submitting ? 'Validation en cours...' : 'Confirmer la Vente & Remise'}
           </Button>
         </div>
       </form>
