@@ -119,12 +119,24 @@ class SaleCreateView(APIView):
         if status_param:
             queryset = queryset.filter(status=status_param)
             
+        search = request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(receipt_id__icontains=search) |
+                models.Q(customer_name__icontains=search) |
+                models.Q(customer_phone__icontains=search) |
+                models.Q(customer__full_name__icontains=search) |
+                models.Q(customer__phone_number__icontains=search)
+            )
+
         data = []
-        for t in queryset:
+        for t in queryset.select_related("customer")[:50]:
             data.append({
                 "id": t.id,
                 "receipt_id": t.receipt_id,
                 "customer_id": t.customer_id,
+                "customer_name": t.customer.full_name if t.customer else (t.customer_name or "Client Comptoir"),
+                "customer_phone": t.customer.phone_number if t.customer else (t.customer_phone or ""),
                 "transaction_type": t.transaction_type,
                 "status": t.status,
                 "total_amount": str(t.total_amount),

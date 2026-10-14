@@ -8,6 +8,7 @@ from apps.returns.services.returns import (
     create_return,
     approve_return,
     process_device_return,
+    reject_return,
 )
 from .serializers import (
     ReturnSerializer,
@@ -104,6 +105,28 @@ class ReturnProcessDeviceView(APIView):
                 return_id=return_id,
                 actor=request.pos_operator,
                 reason=serializer.validated_data.get("reason", ""),
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Return.DoesNotExist:
+            return Response({"detail": "Return not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(
+            ReturnSerializer(return_record).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class ReturnRejectView(APIView):
+    permission_classes = [HasSelectedPOSOperator]
+
+    def post(self, request, return_id):
+        reason = request.data.get("reason", "")
+        try:
+            return_record = reject_return(
+                return_id=return_id,
+                actor=request.pos_operator,
+                reason=reason,
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

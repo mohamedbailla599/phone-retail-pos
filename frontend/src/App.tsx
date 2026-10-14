@@ -13,6 +13,7 @@ import RepairsPage from './pages/RepairsPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportsPage from './pages/ReportsPage';
 import AuditLogsPage from './pages/AuditLogsPage';
+import ReturnsRefundsPage from './pages/ReturnsRefundsPage';
 import SettingsPage from './pages/SettingsPage';
 import { useSettingsStore } from './store/settingsStore';
 import { Loader2 } from 'lucide-react';
@@ -119,6 +120,12 @@ function App() {
           <Route path="/exchanges" element={
             <ProtectedRoute>
               <ExchangesPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/returns" element={
+            <ProtectedRoute>
+              <ReturnsRefundsPage />
             </ProtectedRoute>
           } />
 

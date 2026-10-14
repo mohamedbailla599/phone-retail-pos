@@ -5,6 +5,7 @@ from .views import (
     ReturnCreateView,
     ReturnApproveView,
     ReturnProcessDeviceView,
+    ReturnRejectView,
 )
 
 urlpatterns = [
@@ -13,4 +14,6 @@ urlpatterns = [
     path("<int:return_id>/", ReturnDetailView.as_view(), name="return-detail"),
     path("<int:return_id>/approve/", ReturnApproveView.as_view(), name="return-approve"),
     path("<int:return_id>/process-device/", ReturnProcessDeviceView.as_view(), name="return-process-device"),
+    path("<int:return_id>/restock/", ReturnProcessDeviceView.as_view(), name="return-restock"),
+    path("<int:return_id>/reject/", ReturnRejectView.as_view(), name="return-reject"),
 ]

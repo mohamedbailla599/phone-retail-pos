@@ -13,11 +13,13 @@ class RefundPaymentAllocationSerializer(serializers.ModelSerializer):
 
 class RefundSerializer(serializers.ModelSerializer):
     allocations = RefundPaymentAllocationSerializer(many=True, read_only=True)
-    customer_name = serializers.CharField(source="customer.name", read_only=True)
-    requested_by_name = serializers.CharField(source="requested_by.username", read_only=True)
-    approved_by_name = serializers.CharField(source="approved_by.username", read_only=True)
-    completed_by_name = serializers.CharField(source="completed_by.username", read_only=True)
-    rejected_by_name = serializers.CharField(source="rejected_by.username", read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
+    source_label = serializers.SerializerMethodField()
+    requested_by_name = serializers.SerializerMethodField()
+    approved_by_name = serializers.SerializerMethodField()
+    completed_by_name = serializers.SerializerMethodField()
+    rejected_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Refund
@@ -26,8 +28,10 @@ class RefundSerializer(serializers.ModelSerializer):
             "refund_number",
             "customer",
             "customer_name",
+            "customer_phone",
             "source_type",
             "source_id",
+            "source_label",
             "amount",
             "method",
             "status",
@@ -48,6 +52,46 @@ class RefundSerializer(serializers.ModelSerializer):
             "rejected_by_name",
             "allocations",
         ]
+
+    def get_customer_name(self, obj):
+        if obj.customer:
+            return obj.customer.full_name
+        return "Client Comptoir"
+
+    def get_customer_phone(self, obj):
+        if obj.customer:
+            return obj.customer.phone_number
+        return ""
+
+    def get_source_label(self, obj):
+        if obj.source_type == Refund.SourceType.RETURN:
+            try:
+                ret = Return.objects.select_related("transaction").filter(id=obj.source_id).first()
+                if ret:
+                    return f"{ret.return_number} (Ticket {ret.transaction.receipt_id})"
+            except Exception:
+                pass
+        return f"{obj.source_type} #{obj.source_id}"
+
+    def get_requested_by_name(self, obj):
+        if obj.requested_by:
+            return obj.requested_by.get_full_name() or obj.requested_by.username
+        return ""
+
+    def get_approved_by_name(self, obj):
+        if obj.approved_by:
+            return obj.approved_by.get_full_name() or obj.approved_by.username
+        return ""
+
+    def get_completed_by_name(self, obj):
+        if obj.completed_by:
+            return obj.completed_by.get_full_name() or obj.completed_by.username
+        return ""
+
+    def get_rejected_by_name(self, obj):
+        if obj.rejected_by:
+            return obj.rejected_by.get_full_name() or obj.rejected_by.username
+        return ""
 
 
 class CreateRefundSerializer(serializers.Serializer):

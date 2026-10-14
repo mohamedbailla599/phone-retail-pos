@@ -12,7 +12,9 @@ export interface CatalogItem {
 export interface Transaction {
   id: number;
   receipt_id: string;
-  customer_id: number;
+  customer_id: number | null;
+  customer_name?: string;
+  customer_phone?: string;
   transaction_type: string;
   status: string;
   total_amount: string;
@@ -20,7 +22,7 @@ export interface Transaction {
 }
 
 export const posApi = {
-  getTransactions: async (params?: { customer_id?: number; status?: string; transaction_type?: string }): Promise<Transaction[]> => {
+  getTransactions: async (params?: { customer_id?: number; status?: string; transaction_type?: string; search?: string }): Promise<Transaction[]> => {
     const response = await client.get('/sales/', { params });
     return response.data;
   },

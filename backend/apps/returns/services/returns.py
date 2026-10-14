@@ -3,7 +3,10 @@ from django.db.models import Sum
 from django.utils import timezone
 from apps.audit.models import AuditLog
 from apps.audit.services import record_audit
-from apps.inventory.services.inventory import return_device_to_stock
+from apps.inventory.services.inventory import (
+    return_device_to_stock,
+    adjust_accessory_stock,
+)
 from apps.returns.models import Return, ReturnItem
 from apps.sales.models import Transaction, TransactionItem
 
@@ -192,7 +195,7 @@ def approve_return(*, return_id, actor):
 
 
 @transaction.atomic
-def process_device_return(*, return_id, actor, reason=None):
+def process_return_restock(*, return_id, actor, reason=None):
     return_record = (
         Return.objects
         .select_for_update()
@@ -212,31 +215,32 @@ def process_device_return(*, return_id, actor, reason=None):
             "Return has no items."
         )
 
-    if len(return_items) != 1:
-        raise ValueError(
-            "Device return must contain exactly one return item."
+    for return_item in return_items:
+        transaction_item = (
+            TransactionItem.objects
+            .select_for_update()
+            .get(pk=return_item.transaction_item_id)
         )
 
-    return_item = return_items[0]
-
-    transaction_item = (
-    TransactionItem.objects
-    .select_for_update()
-    .get(pk=return_item.transaction_item_id)
-)
-
-    if transaction_item.device_id is None:
-        raise ValueError(
-            "This return item is not a device return."
-        )
-
-    device = return_device_to_stock(
-        device_id=transaction_item.device_id,
-        actor=actor,
-        reference_type="Return",
-        reference_id=return_record.id,
-        reason=reason or return_record.reason,
-    )
+        if transaction_item.device_id is not None:
+            return_device_to_stock(
+                device_id=transaction_item.device_id,
+                actor=actor,
+                reference_type="Return",
+                reference_id=return_record.id,
+                reason=reason or return_record.reason,
+            )
+        elif transaction_item.accessory_stock_id is not None:
+            adjust_accessory_stock(
+                accessory_stock_id=transaction_item.accessory_stock_id,
+                quantity_delta=return_item.quantity,
+                actor=actor,
+                reason=reason or f"Retour client {return_record.return_number}",
+                reference_type="Return",
+                reference_id=return_record.id,
+            )
+        else:
+            raise ValueError("Item has neither device nor accessory stock reference.")
 
     return_record.status = Return.Status.RESTOCKED
     return_record.save(update_fields=["status"])
@@ -249,6 +253,40 @@ def process_device_return(*, return_id, actor, reason=None):
         reason=reason or return_record.reason,
     )
 
-    return return_record, device
+    return return_record
 
-    
+
+def process_device_return(*, return_id, actor, reason=None):
+    """Backwards-compatible alias for process_return_restock."""
+    record = process_return_restock(return_id=return_id, actor=actor, reason=reason)
+    return record, None
+
+
+@transaction.atomic
+def reject_return(*, return_id, actor, reason=None):
+    return_record = (
+        Return.objects
+        .select_for_update()
+        .get(pk=return_id)
+    )
+
+    if return_record.status not in [Return.Status.REQUESTED, Return.Status.APPROVED]:
+        raise ValueError(
+            "Only REQUESTED or APPROVED returns can be rejected."
+        )
+
+    return_record.status = Return.Status.REJECTED
+    if reason:
+        return_record.reason = f"{return_record.reason}\n[Rejet]: {reason}".strip()
+    return_record.completed_at = timezone.now()
+    return_record.save(update_fields=["status", "reason", "completed_at"])
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.RETURN_REJECTED,
+        entity_type="Return",
+        entity_id=return_record.id,
+        reason=reason or "Return rejected",
+    )
+
+    return return_record
