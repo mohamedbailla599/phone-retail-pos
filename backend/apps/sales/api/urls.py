@@ -4,12 +4,13 @@ from .views import (
     TransactionDetailView, SaleItemRemoveView, SaleCheckoutView, SaleCancelCheckoutView,
     SaleCancelView, SalePaymentView, SaleCompleteView,
     PaymentConfirmView, PaymentRejectView, SaleDiscountView,
-    DashboardStatsView, SaleCustomerAssignView
+    DashboardStatsView, SaleCustomerAssignView, ZReportView
 )
 
 app_name = "sales"
 
 urlpatterns = [
+    path("reports/z-report/", ZReportView.as_view(), name="z-report"),
     path("dashboard/", DashboardStatsView.as_view(), name="dashboard-stats"),
     path("pos-catalog/", POSCatalogView.as_view(), name="pos-catalog"),
     path("", SaleCreateView.as_view(), name="sale-create"),

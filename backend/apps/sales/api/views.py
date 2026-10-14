@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import datetime, time
 from django.utils import timezone
 from django.db import models
 from django.db.models import Count, Q, Min, Sum, F
@@ -12,7 +13,7 @@ from apps.sales.services.scanner import process_scanned_barcode, broadcast_cart_
 from rest_framework.exceptions import ValidationError
 from apps.inventory.models import DeviceItem, AccessoryStock
 from apps.catalog.models import Product
-from apps.customers.models import Customer
+from apps.customers.models import Customer, CustomerDebtPayment
 from apps.sales.services.sales import create_sale, add_device_to_sale, add_accessory_to_sale, remove_sale_item, move_sale_to_pending_payment, revert_sale_to_draft, complete_sale
 from apps.payments.services.payments import create_payment, confirm_bank_transfer, reject_bank_transfer
 
@@ -524,3 +525,219 @@ class DashboardStatsView(APIView):
             "recent_exchanges": recent_exchanges,
             "low_stock_items": low_stock_list,
         })
+
+
+class ZReportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """
+        Z-Report / Daily Financial Summary & Cash Reconciliation.
+        Supports query params ?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD.
+        Defaults to current local date.
+        """
+        tz = timezone.get_current_timezone()
+        now_local = timezone.localtime(timezone.now())
+        today = now_local.date()
+
+        start_date_str = request.query_params.get("start_date")
+        end_date_str = request.query_params.get("end_date")
+
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else today
+        except ValueError:
+            start_date = today
+
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else start_date
+        except ValueError:
+            end_date = start_date
+
+        start_dt = timezone.make_aware(datetime.combine(start_date, time.min), tz)
+        end_dt = timezone.make_aware(datetime.combine(end_date, time.max), tz)
+
+        # 1. Completed Sales in range
+        completed_sales = Transaction.objects.filter(
+            status=Transaction.Status.COMPLETED
+        ).filter(
+            Q(completed_at__gte=start_dt, completed_at__lte=end_dt) |
+            Q(completed_at__isnull=True, created_at__gte=start_dt, created_at__lte=end_dt)
+        ).select_related("customer", "created_by").prefetch_related("items", "payments")
+
+        sales_count = completed_sales.count()
+        total_revenue = completed_sales.aggregate(t=Sum("total_amount"))["t"] or Decimal("0.00")
+        total_discount = completed_sales.aggregate(t=Sum("discount_amount"))["t"] or Decimal("0.00")
+        subtotal = completed_sales.aggregate(t=Sum("subtotal"))["t"] or Decimal("0.00")
+        average_basket = (total_revenue / Decimal(str(sales_count))) if sales_count > 0 else Decimal("0.00")
+
+        # 2. Confirmed Payments from Sales
+        sale_payments = Payment.objects.filter(
+            transaction__in=completed_sales,
+            status=Payment.Status.CONFIRMED,
+        )
+        direct_cash = sale_payments.filter(method=Payment.Method.CASH).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+        direct_transfer = sale_payments.filter(method=Payment.Method.BANK_TRANSFER).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+        new_debt_granted = sale_payments.filter(method=Payment.Method.DEBT).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+
+        # 3. Customer Debt Repayments in Range
+        debt_payments = CustomerDebtPayment.objects.filter(
+            created_at__gte=start_dt,
+            created_at__lte=end_dt,
+        ).select_related("customer", "operator")
+
+        debt_cash = debt_payments.filter(payment_method=CustomerDebtPayment.Method.CASH).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+        debt_transfer = debt_payments.filter(payment_method=CustomerDebtPayment.Method.BANK_TRANSFER).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+        total_debt_recovered = debt_cash + debt_transfer
+
+        # 4. Total Cash in Drawer & Total Real Collected
+        cash_in_drawer = direct_cash + debt_cash
+        total_bank_transfer = direct_transfer + debt_transfer
+        total_real_collected = cash_in_drawer + total_bank_transfer
+
+        # 5. Items, Cost & Profit
+        items = TransactionItem.objects.filter(transaction__in=completed_sales)
+        total_device_revenue = Decimal("0.00")
+        total_device_cost = Decimal("0.00")
+        device_units_sold = 0
+
+        total_accessory_revenue = Decimal("0.00")
+        total_accessory_cost = Decimal("0.00")
+        accessory_units_sold = 0
+
+        product_sales_dict = {}
+
+        for itm in items:
+            cost = itm.cost_price_at_sale * itm.quantity
+            p_name = itm.product_name_snapshot
+            if itm.device_id:
+                total_device_revenue += itm.line_total
+                total_device_cost += cost
+                device_units_sold += itm.quantity
+            else:
+                total_accessory_revenue += itm.line_total
+                total_accessory_cost += cost
+                accessory_units_sold += itm.quantity
+
+            if p_name not in product_sales_dict:
+                product_sales_dict[p_name] = {
+                    "name": p_name,
+                    "sku": itm.sku_snapshot,
+                    "quantity": 0,
+                    "revenue": Decimal("0.00"),
+                    "cost": Decimal("0.00"),
+                    "profit": Decimal("0.00"),
+                }
+            product_sales_dict[p_name]["quantity"] += itm.quantity
+            product_sales_dict[p_name]["revenue"] += itm.line_total
+            product_sales_dict[p_name]["cost"] += cost
+            product_sales_dict[p_name]["profit"] += (itm.line_total - cost)
+
+        total_cogs = total_device_cost + total_accessory_cost
+        gross_profit = total_revenue - total_cogs
+        margin_percent = ((gross_profit / total_revenue) * Decimal("100.0")) if total_revenue > 0 else Decimal("0.00")
+
+        device_profit = total_device_revenue - total_device_cost
+        accessory_profit = total_accessory_revenue - total_accessory_cost
+
+        # Top products by revenue
+        top_products = sorted(product_sales_dict.values(), key=lambda x: x["revenue"], reverse=True)[:10]
+        top_products_formatted = [
+            {
+                "name": tp["name"],
+                "sku": tp["sku"],
+                "quantity": tp["quantity"],
+                "revenue": f"{tp['revenue']:.2f}",
+                "profit": f"{tp['profit']:.2f}",
+            }
+            for tp in top_products
+        ]
+
+        # 6. Sales List
+        sales_records = []
+        for s in completed_sales.order_by("-completed_at", "-created_at"):
+            c_name = s.customer_name or (s.customer.full_name if s.customer else "Client comptoir")
+            c_phone = s.customer_phone or (s.customer.phone_number if s.customer else "")
+            
+            p_cash = s.payments.filter(method=Payment.Method.CASH, status=Payment.Status.CONFIRMED).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+            p_transfer = s.payments.filter(method=Payment.Method.BANK_TRANSFER, status=Payment.Status.CONFIRMED).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+            p_debt = s.payments.filter(method=Payment.Method.DEBT, status=Payment.Status.CONFIRMED).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+
+            sales_records.append({
+                "id": s.id,
+                "receipt_id": s.receipt_id,
+                "customer_name": c_name,
+                "customer_phone": c_phone,
+                "total_amount": f"{s.total_amount:.2f}",
+                "discount_amount": f"{s.discount_amount:.2f}",
+                "cash_amount": f"{p_cash:.2f}",
+                "transfer_amount": f"{p_transfer:.2f}",
+                "debt_amount": f"{p_debt:.2f}",
+                "items_count": s.items.count(),
+                "created_at": (s.completed_at or s.created_at).isoformat(),
+                "operator": str(s.created_by) if s.created_by else "",
+            })
+
+        # 7. Debt Payments List
+        debt_records = []
+        for dp in debt_payments.order_by("-created_at"):
+            debt_records.append({
+                "id": dp.id,
+                "customer_name": dp.customer.full_name,
+                "customer_phone": dp.customer.phone_number,
+                "amount": f"{dp.amount:.2f}",
+                "payment_method": dp.payment_method,
+                "notes": dp.notes or "",
+                "created_at": dp.created_at.isoformat(),
+                "operator": str(dp.operator) if dp.operator else "",
+            })
+
+        return Response({
+            "period": {
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d"),
+                "generated_at": now_local.isoformat(),
+                "is_single_day": start_date == end_date,
+            },
+            "kpi": {
+                "total_revenue": f"{total_revenue:.2f}",
+                "subtotal": f"{subtotal:.2f}",
+                "total_discount": f"{total_discount:.2f}",
+                "sales_count": sales_count,
+                "average_basket": f"{average_basket:.2f}",
+                # Real cash drawer
+                "cash_in_drawer": f"{cash_in_drawer:.2f}",
+                "direct_cash": f"{direct_cash:.2f}",
+                "debt_cash": f"{debt_cash:.2f}",
+                # Bank transfers
+                "total_bank_transfer": f"{total_bank_transfer:.2f}",
+                "direct_transfer": f"{direct_transfer:.2f}",
+                "debt_transfer": f"{debt_transfer:.2f}",
+                # Total collected
+                "total_real_collected": f"{total_real_collected:.2f}",
+                # Debt granted vs recovered
+                "new_debt_granted": f"{new_debt_granted:.2f}",
+                "total_debt_recovered": f"{total_debt_recovered:.2f}",
+                # Profitability
+                "total_cogs": f"{total_cogs:.2f}",
+                "gross_profit": f"{gross_profit:.2f}",
+                "margin_percent": f"{margin_percent:.1f}",
+            },
+            "breakdown": {
+                "devices": {
+                    "units": device_units_sold,
+                    "revenue": f"{total_device_revenue:.2f}",
+                    "cost": f"{total_device_cost:.2f}",
+                    "profit": f"{device_profit:.2f}",
+                },
+                "accessories": {
+                    "units": accessory_units_sold,
+                    "revenue": f"{total_accessory_revenue:.2f}",
+                    "cost": f"{total_accessory_cost:.2f}",
+                    "profit": f"{accessory_profit:.2f}",
+                },
+            },
+            "top_products": top_products_formatted,
+            "sales": sales_records,
+            "debt_repayments": debt_records,
+        })
+
