@@ -97,9 +97,9 @@ export default function AdjustAccessoryStockModal({
           </div>
         )}
 
-        <div className="bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] p-4 flex flex-col gap-1">
-          <span className="text-xs text-text-muted uppercase tracking-wider">Current Stock</span>
-          <span className="text-xl font-semibold text-text">{currentQuantity}</span>
+        <div className="bg-surface-alt border border-border rounded-[var(--radius-md)] p-4 flex flex-col gap-1">
+          <span className="text-xs text-text-muted uppercase tracking-wider font-semibold">Current Stock</span>
+          <span className="text-xl font-bold text-text">{currentQuantity}</span>
         </div>
 
         <Input

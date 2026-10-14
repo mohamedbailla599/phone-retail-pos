@@ -60,21 +60,21 @@ export default function SelectCustomerModal({
           {/* Top Actions: Search + Add New */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Rechercher nom ou téléphone..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
-                className="w-full h-10 bg-surface border border-border rounded-[var(--radius-md)] pl-9 pr-4 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-gold-border transition-smooth"
+                className="w-full h-10 bg-surface-alt border border-border rounded-[var(--radius-md)] pl-10 pr-4 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
               />
             </div>
             <Button
               variant="primary"
               size="sm"
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex-shrink-0 gap-1.5 h-10 px-3"
+              className="flex-shrink-0 gap-1.5 h-10 px-3.5"
             >
               <Plus className="w-4 h-4" />
               Nouveau
@@ -88,10 +88,10 @@ export default function SelectCustomerModal({
               onSelectCustomer(null);
               onClose();
             }}
-            className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all ${
+            className={`w-full p-3 rounded-[var(--radius-md)] border flex items-center justify-between text-left transition-all cursor-pointer ${
               !selectedCustomerId
-                ? 'bg-gold/10 border-gold/40 text-gold'
-                : 'bg-surface hover:bg-surface-elevated border-border text-text-secondary'
+                ? 'bg-gold/15 border-gold-border text-gold shadow-sm'
+                : 'bg-surface-alt hover:bg-surface-elevated border-border text-text-secondary hover:text-text hover:border-border-focus'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -107,14 +107,14 @@ export default function SelectCustomerModal({
           </button>
 
           {/* Customer list */}
-          <div className="max-h-[320px] overflow-y-auto space-y-1.5 pr-1 divide-y divide-border/50">
+          <div className="max-h-[320px] overflow-y-auto space-y-1.5 pr-1">
             {loading && customers.length === 0 ? (
               <div className="py-8 text-center text-text-muted">
                 <Loader2 className="w-6 h-6 text-gold animate-spin mx-auto mb-2" />
                 Recherche des clients...
               </div>
             ) : customers.length === 0 ? (
-              <div className="py-8 text-center text-text-muted text-xs border border-dashed border-border rounded-xl">
+              <div className="py-8 text-center text-text-muted text-xs border border-dashed border-border rounded-[var(--radius-md)]">
                 Aucun client trouvé pour "{search}".
               </div>
             ) : (
@@ -131,10 +131,10 @@ export default function SelectCustomerModal({
                       onSelectCustomer(c);
                       onClose();
                     }}
-                    className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all pt-2.5 ${
+                    className={`w-full p-3 rounded-[var(--radius-md)] border flex items-center justify-between text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-gold/10 border-gold/40'
-                        : 'bg-surface hover:bg-surface-elevated border-border/70 hover:border-border'
+                        ? 'bg-gold/15 border-gold-border shadow-sm'
+                        : 'bg-surface-alt hover:bg-surface-elevated border-border hover:border-border-focus'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -156,7 +156,7 @@ export default function SelectCustomerModal({
                           Dette: {debtNum.toFixed(2)} DH
                         </Badge>
                       ) : (
-                        <span className="text-[11px] text-emerald-400 font-medium">À jour</span>
+                        <span className="text-[11px] text-emerald-500 font-medium">À jour</span>
                       )}
                       {limitNum > 0 && (
                         <span className="text-[10px] text-text-muted">

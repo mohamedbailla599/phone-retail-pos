@@ -13,19 +13,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    'bg-gold text-[#080808] font-semibold hover:bg-gold-bright active:bg-gold-soft shadow-[0_0_16px_rgba(212,175,90,0.15)]',
+    'bg-gold text-[#080808] font-semibold hover:bg-gold-bright active:bg-gold-soft shadow-[0_2px_12px_rgba(212,175,90,0.20)] hover:shadow-[0_4px_20px_rgba(212,175,90,0.30)]',
   secondary:
-    'bg-surface-elevated text-text border border-border hover:bg-surface-hover hover:border-[rgba(255,255,255,0.12)]',
+    'bg-surface-elevated text-text border border-border hover:bg-surface-hover hover:border-border-focus shadow-xs cursor-pointer',
   danger:
-    'bg-danger/10 text-red-400 border border-red-500/20 hover:bg-danger/20 hover:border-red-500/30',
+    'bg-danger/10 text-red-500 dark:text-red-400 border border-red-500/25 hover:bg-danger/20 hover:border-red-500/40 shadow-xs cursor-pointer',
   ghost:
-    'bg-transparent text-text-secondary hover:text-text hover:bg-[rgba(255,255,255,0.05)]',
+    'bg-transparent text-text-secondary hover:text-text hover:bg-surface-hover cursor-pointer',
 };
 
 const sizes: Record<ButtonSize, string> = {
   sm: 'h-8 px-3 text-xs rounded-[var(--radius-sm)] gap-1.5',
-  md: 'h-10 px-4 text-sm rounded-[var(--radius-md)] gap-2',
-  lg: 'h-12 px-6 text-[15px] rounded-[var(--radius-lg)] gap-2.5',
+  md: 'h-10 px-4 text-[13px] rounded-[var(--radius-md)] gap-2',
+  lg: 'h-12 px-6 text-[14px] rounded-[var(--radius-lg)] gap-2.5',
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -35,8 +35,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={clsx(
-          'inline-flex items-center justify-center font-medium transition-smooth select-none',
-          'disabled:opacity-40 disabled:cursor-not-allowed',
+          'inline-flex items-center justify-center font-medium transition-all duration-200 select-none',
+          'disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none',
           'active:scale-[0.97]',
           variants[variant],
           sizes[size],

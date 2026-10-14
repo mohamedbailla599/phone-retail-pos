@@ -205,7 +205,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
         <div className="w-full max-w-2xl bg-surface border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-text">Receive Device</h2>
-          <button onClick={onClose} className="p-2 rounded-lg text-text-muted hover:bg-[rgba(255,255,255,0.05)] transition-colors">
+          <button onClick={onClose} className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -228,10 +228,10 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                   type="button"
                   onClick={() => setDeviceType('APPLE')}
                   className={cn(
-                    "flex-1 py-2 px-4 rounded-[var(--radius-md)] border text-sm font-medium transition-colors",
+                    "flex-1 py-2.5 px-4 rounded-[var(--radius-md)] border text-sm font-semibold transition-all cursor-pointer",
                     deviceType === 'APPLE' 
-                      ? "bg-gold/10 border-gold/50 text-gold" 
-                      : "bg-[rgba(255,255,255,0.02)] border-border text-text-secondary hover:text-text"
+                      ? "bg-gold/15 border-gold-border text-gold shadow-sm" 
+                      : "bg-surface-alt border-border text-text-secondary hover:text-text hover:bg-surface-hover"
                   )}
                 >
                   Apple
@@ -240,10 +240,10 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                   type="button"
                   onClick={() => setDeviceType('ANDROID')}
                   className={cn(
-                    "flex-1 py-2 px-4 rounded-[var(--radius-md)] border text-sm font-medium transition-colors",
+                    "flex-1 py-2.5 px-4 rounded-[var(--radius-md)] border text-sm font-semibold transition-all cursor-pointer",
                     deviceType === 'ANDROID' 
-                      ? "bg-gold/10 border-gold/50 text-gold" 
-                      : "bg-[rgba(255,255,255,0.02)] border-border text-text-secondary hover:text-text"
+                      ? "bg-gold/15 border-gold-border text-gold shadow-sm" 
+                      : "bg-surface-alt border-border text-text-secondary hover:text-text hover:bg-surface-hover"
                   )}
                 >
                   Android
@@ -286,7 +286,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                   placeholder="Search product..."
                 />
               ) : (
-                <div className="p-4 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] space-y-4">
+                <div className="p-4 bg-surface-alt border border-border rounded-[var(--radius-md)] space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-text-muted mb-1">Brand *</label>
@@ -295,7 +295,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                         required={isNewProduct}
                         value={formData.new_product_brand}
                         onChange={(e) => setFormData({ ...formData, new_product_brand: e.target.value })}
-                        className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                        className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                       />
                     </div>
                     <div>
@@ -305,7 +305,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                         required={isNewProduct}
                         value={formData.new_product_name}
                         onChange={(e) => setFormData({ ...formData, new_product_name: e.target.value })}
-                        className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                        className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -318,7 +318,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                         required={isNewProduct}
                         value={formData.new_product_sku}
                         onChange={(e) => setFormData({ ...formData, new_product_sku: e.target.value })}
-                        className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                        className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                       />
                     </div>
                     <div>
@@ -327,7 +327,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                         type="number"
                         value={formData.new_product_storage_gb}
                         onChange={(e) => setFormData({ ...formData, new_product_storage_gb: e.target.value })}
-                        className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                        className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -359,7 +359,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                         placeholder="Category Name (e.g. Smartphones)"
                         value={formData.new_category_name}
                         onChange={(e) => setFormData({ ...formData, new_category_name: e.target.value })}
-                        className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                        className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                       />
                     )}
                   </div>
@@ -377,7 +377,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                     type="text"
                     value={formData.imei_1}
                     onChange={(e) => setFormData({ ...formData, imei_1: e.target.value })}
-                    className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                   />
                 </div>
                 <div>
@@ -386,7 +386,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                     type="text"
                     value={formData.imei_2}
                     onChange={(e) => setFormData({ ...formData, imei_2: e.target.value })}
-                    className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                   />
                 </div>
                 <div className="col-span-2">
@@ -395,7 +395,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                     type="text"
                     value={formData.serial_number}
                     onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
-                    className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                   />
                 </div>
               </div>
@@ -419,14 +419,14 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                         type="number"
                         value={formData.new_product_ram_gb}
                         onChange={(e) => setFormData({ ...formData, new_product_ram_gb: e.target.value })}
-                        className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                        className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                       />
                     ) : (
                       <input
                         type="text"
                         disabled
                         value={selectedProduct?.ram_gb || 'N/A'}
-                        className="w-full h-10 px-3 bg-[rgba(255,255,255,0.01)] border border-border/50 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
+                        className="w-full h-10 px-3 bg-surface-elevated/50 border border-border/70 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
                       />
                     )}
                   </div>
@@ -439,14 +439,14 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                       type="number"
                       disabled
                       value={formData.new_product_storage_gb}
-                      className="w-full h-10 px-3 bg-[rgba(255,255,255,0.01)] border border-border/50 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
+                      className="w-full h-10 px-3 bg-surface-elevated/50 border border-border/70 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
                     />
                   ) : (
                     <input
                       type="text"
                       disabled
                       value={selectedProduct?.storage_gb || 'N/A'}
-                      className="w-full h-10 px-3 bg-[rgba(255,255,255,0.01)] border border-border/50 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
+                      className="w-full h-10 px-3 bg-surface-elevated/50 border border-border/70 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
                     />
                   )}
                 </div>
@@ -460,7 +460,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                       max="100"
                       value={formData.battery_health}
                       onChange={(e) => setFormData({ ...formData, battery_health: e.target.value })}
-                      className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                      className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                     />
                   </div>
                 )}
@@ -473,7 +473,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                       min="1"
                       value={formData.battery_capacity_mah}
                       onChange={(e) => setFormData({ ...formData, battery_capacity_mah: e.target.value })}
-                      className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                      className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                     />
                   </div>
                 )}
@@ -492,7 +492,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                     required
                     value={formData.cost_price}
                     onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
-                    className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                   />
                 </div>
                 <div>
@@ -503,7 +503,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                     required
                     value={formData.default_selling_price}
                     onChange={(e) => setFormData({ ...formData, default_selling_price: e.target.value })}
-                    className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                   />
                 </div>
                 <div>
@@ -514,7 +514,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                     required
                     value={formData.minimum_selling_price}
                     onChange={(e) => setFormData({ ...formData, minimum_selling_price: e.target.value })}
-                    className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                   />
                 </div>
               </div>
@@ -540,14 +540,14 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 rounded-[var(--radius-md)] font-medium text-text-secondary hover:text-text hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                className="px-4 py-2 rounded-[var(--radius-md)] font-medium text-text-secondary hover:text-text hover:bg-surface-hover transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading || !isIdentifiersValid || (!isNewProduct && !formData.product_id)}
-                className="px-6 py-2 rounded-[var(--radius-md)] font-semibold text-black bg-gold hover:bg-gold-hover transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2 rounded-[var(--radius-md)] font-semibold text-black bg-gold hover:bg-gold-bright transition-all shadow-[0_2px_12px_rgba(212,175,90,0.25)] disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Receive Device

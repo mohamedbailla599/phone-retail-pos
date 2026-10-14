@@ -17,11 +17,17 @@ import ReturnsRefundsPage from './pages/ReturnsRefundsPage';
 import ReservationsPage from './pages/ReservationsPage';
 import SettingsPage from './pages/SettingsPage';
 import { useSettingsStore } from './store/settingsStore';
+import { useThemeStore } from './store/themeStore';
 import { Loader2 } from 'lucide-react';
 
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const { setAuth, setOperator, operator, setLoading, isLoading } = useAuthStore();
   const { fetchSettings } = useSettingsStore();
+  const { initTheme } = useThemeStore();
+
+  useEffect(() => {
+    initTheme();
+  }, [initTheme]);
 
   useEffect(() => {
     let mounted = true;

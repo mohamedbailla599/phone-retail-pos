@@ -25,13 +25,21 @@ import {
   Eye,
   Crown,
   KeyRound,
+  Sun,
+  Moon,
+  Monitor,
+  Palette,
+  Sparkles,
+  Check,
 } from 'lucide-react';
+import { useThemeStore } from '../store/themeStore';
 
 export default function SettingsPage() {
   const { operator: currentOperator } = useAuthStore();
   const { fetchSettings, updateSettings } = useSettingsStore();
+  const { theme, resolvedTheme, setTheme } = useThemeStore();
 
-  const [activeTab, setActiveTab] = useState<'store' | 'operators' | 'warranties'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'appearance' | 'operators' | 'warranties'>('store');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -274,7 +282,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {activeTab !== 'operators' && (
+            {activeTab !== 'operators' && activeTab !== 'appearance' && (
               <Button
                 variant="primary"
                 onClick={handleSaveSettings}
@@ -324,7 +332,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Boutique Active</p>
-                <p className="text-base font-bold text-white mt-0.5 truncate max-w-[200px]">
+                <p className="text-base font-bold text-text mt-0.5 truncate max-w-[200px]">
                   {formData.store_name || 'Bighrissen Phone'}
                 </p>
                 <p className="text-xs text-text-secondary mt-0.5">
@@ -339,7 +347,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-gold">Propriétaires & Direction</p>
-                <p className="text-base font-bold text-white mt-0.5">Hassan & Mohamed</p>
+                <p className="text-base font-bold text-text mt-0.5">Hassan & Mohamed</p>
                 <p className="text-xs text-text-secondary mt-0.5">
                   Co-propriétaires & Administrateurs ({activeOperatorsCount} opérateurs actifs)
                 </p>
@@ -352,7 +360,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Garanties par Défaut</p>
-                <p className="text-base font-bold text-white mt-0.5">
+                <p className="text-base font-bold text-text mt-0.5">
                   {formData.default_device_warranty_months} mois (Téléphones)
                 </p>
                 <p className="text-xs text-text-secondary mt-0.5">
@@ -369,7 +377,7 @@ export default function SettingsPage() {
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'store'
                   ? 'bg-gold/15 text-gold border border-gold-border shadow-sm'
-                  : 'text-text-secondary hover:text-white hover:bg-surface-hover border border-transparent'
+                  : 'text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent'
               }`}
             >
               <Store className="w-4 h-4" />
@@ -377,11 +385,26 @@ export default function SettingsPage() {
             </button>
 
             <button
+              onClick={() => setActiveTab('appearance')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'appearance'
+                  ? 'bg-gold/15 text-gold border border-gold-border shadow-sm'
+                  : 'text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent'
+              }`}
+            >
+              <Palette className="w-4 h-4" />
+              <span>Thème & Apparence</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gold/10 text-gold border border-gold-border/30">
+                {resolvedTheme === 'dark' ? 'Sombre' : 'Clair'}
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('operators')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'operators'
                   ? 'bg-gold/15 text-gold border border-gold-border shadow-sm'
-                  : 'text-text-secondary hover:text-white hover:bg-surface-hover border border-transparent'
+                  : 'text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent'
               }`}
             >
               <Users className="w-4 h-4" />
@@ -393,7 +416,7 @@ export default function SettingsPage() {
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'warranties'
                   ? 'bg-gold/15 text-gold border border-gold-border shadow-sm'
-                  : 'text-text-secondary hover:text-white hover:bg-surface-hover border border-transparent'
+                  : 'text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent'
               }`}
             >
               <ShieldCheck className="w-4 h-4" />
@@ -554,6 +577,299 @@ export default function SettingsPage() {
                   <p className="text-[11px] text-text-muted mt-3 text-center">
                     Le rendu correspond fidèlement aux rouleaux thermiques 80mm de votre caisse.
                   </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Apparence & Thème */}
+          {activeTab === 'appearance' && (
+            <div className="space-y-6 animate-[fadeIn_150ms_ease-out]">
+              {/* Header Banner */}
+              <div className="p-6 rounded-2xl bg-surface border border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gold/10 border border-gold-border flex items-center justify-center text-gold">
+                    <Palette className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-text">Choix du Thème Visuel</h2>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Personnalisez l'ambiance de l'application selon vos préférences ou les conditions d'éclairage du magasin.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-surface-alt border border-border text-xs">
+                  <span className="text-text-muted font-medium">Mode actif :</span>
+                  <span className="font-bold text-gold flex items-center gap-1.5">
+                    {resolvedTheme === 'dark' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+                    {theme === 'system'
+                      ? `Système (${resolvedTheme === 'dark' ? 'Sombre' : 'Clair'})`
+                      : resolvedTheme === 'dark'
+                      ? 'Sombre (Noir & Or)'
+                      : 'Clair (Blanc & Or)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Theme Grid Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 1. Dark Mode */}
+                <div
+                  onClick={() => {
+                    setTheme('dark');
+                    setSuccessMessage('Thème Sombre (Noir & Or) activé.');
+                    setTimeout(() => setSuccessMessage(null), 3000);
+                  }}
+                  className={`group relative p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover-lift ${
+                    theme === 'dark'
+                      ? 'bg-surface border-gold shadow-lg shadow-gold/10 ring-1 ring-gold/30'
+                      : 'bg-surface border-border hover:border-gold-border/60'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-[#1C1C1C] border border-neutral-700 flex items-center justify-center text-gold">
+                        <Moon className="w-5 h-5" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gold/10 text-gold border border-gold-border/40">
+                          Signature
+                        </span>
+                        <div
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                            theme === 'dark'
+                              ? 'border-gold bg-gold text-black'
+                              : 'border-neutral-600 bg-surface-alt'
+                          }`}
+                        >
+                          {theme === 'dark' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-bold text-text">Mode Sombre</h3>
+                      <p className="text-[11px] font-medium text-gold mt-0.5">Noir & Or Signature</p>
+                      <p className="text-xs text-text-muted mt-2 leading-relaxed">
+                        Fond noir profond, surfaces sombres contrastées et finitions or luxueuses. Idéal pour préserver la vue et économiser la batterie.
+                      </p>
+                    </div>
+
+                    {/* Miniature UI Mockup */}
+                    <div className="p-3 rounded-xl bg-[#080808] border border-neutral-800 space-y-2 mt-4 select-none pointer-events-none">
+                      <div className="h-5 px-2 bg-[#111111] border border-neutral-800 rounded flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-[#D4AF5A]">BIGHRISSEN</span>
+                        <div className="w-2 h-2 rounded-full bg-[#D4AF5A]" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="p-1.5 rounded bg-[#161616] border border-neutral-800">
+                          <span className="text-[8px] text-neutral-400">Ventes</span>
+                          <p className="text-[10px] font-bold text-[#D4AF5A]">12 450 DH</p>
+                        </div>
+                        <div className="p-1.5 rounded bg-[#161616] border border-neutral-800">
+                          <span className="text-[8px] text-neutral-400">Stock</span>
+                          <p className="text-[10px] font-bold text-neutral-200">28 pcs</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-border flex items-center justify-between text-xs">
+                    <span className="text-text-muted">Palette sombre</span>
+                    <span className={`font-semibold ${theme === 'dark' ? 'text-gold' : 'text-text-secondary'}`}>
+                      {theme === 'dark' ? '✓ Actif' : 'Sélectionner'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Light Mode */}
+                <div
+                  onClick={() => {
+                    setTheme('light');
+                    setSuccessMessage('Thème Clair (Blanc & Or) activé.');
+                    setTimeout(() => setSuccessMessage(null), 3000);
+                  }}
+                  className={`group relative p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover-lift ${
+                    theme === 'light'
+                      ? 'bg-surface border-gold shadow-lg shadow-gold/10 ring-1 ring-gold/30'
+                      : 'bg-surface border-border hover:border-gold-border/60'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                        <Sun className="w-5 h-5" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                          Épuré
+                        </span>
+                        <div
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                            theme === 'light'
+                              ? 'border-gold bg-gold text-black'
+                              : 'border-neutral-400 bg-surface-alt'
+                          }`}
+                        >
+                          {theme === 'light' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-bold text-text">Mode Clair</h3>
+                      <p className="text-[11px] font-medium text-amber-700 dark:text-gold mt-0.5">Blanc & Or Épuré</p>
+                      <p className="text-xs text-text-muted mt-2 leading-relaxed">
+                        Surfaces lumineuses, typographies foncées à contraste élevé et dorures raffinées. Idéal pour les boutiques fortement éclairées.
+                      </p>
+                    </div>
+
+                    {/* Miniature UI Mockup */}
+                    <div className="p-3 rounded-xl bg-[#F4F5F8] border border-neutral-300 space-y-2 mt-4 select-none pointer-events-none">
+                      <div className="h-5 px-2 bg-white border border-neutral-200 rounded flex items-center justify-between shadow-xs">
+                        <span className="text-[9px] font-bold text-[#B8860B]">BIGHRISSEN</span>
+                        <div className="w-2 h-2 rounded-full bg-[#B8860B]" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="p-1.5 rounded bg-white border border-neutral-200 shadow-xs">
+                          <span className="text-[8px] text-neutral-500">Ventes</span>
+                          <p className="text-[10px] font-bold text-[#B8860B]">12 450 DH</p>
+                        </div>
+                        <div className="p-1.5 rounded bg-white border border-neutral-200 shadow-xs">
+                          <span className="text-[8px] text-neutral-500">Stock</span>
+                          <p className="text-[10px] font-bold text-neutral-900">28 pcs</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-border flex items-center justify-between text-xs">
+                    <span className="text-text-muted">Palette claire</span>
+                    <span className={`font-semibold ${theme === 'light' ? 'text-gold' : 'text-text-secondary'}`}>
+                      {theme === 'light' ? '✓ Actif' : 'Sélectionner'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. System Mode */}
+                <div
+                  onClick={() => {
+                    setTheme('system');
+                    setSuccessMessage('Synchronisation avec le système activée.');
+                    setTimeout(() => setSuccessMessage(null), 3000);
+                  }}
+                  className={`group relative p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover-lift ${
+                    theme === 'system'
+                      ? 'bg-surface border-gold shadow-lg shadow-gold/10 ring-1 ring-gold/30'
+                      : 'bg-surface border-border hover:border-gold-border/60'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                        <Monitor className="w-5 h-5" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                          Automatique
+                        </span>
+                        <div
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                            theme === 'system'
+                              ? 'border-gold bg-gold text-black'
+                              : 'border-neutral-600 bg-surface-alt'
+                          }`}
+                        >
+                          {theme === 'system' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-bold text-text">Automatique / Système</h3>
+                      <p className="text-[11px] font-medium text-blue-400 mt-0.5">Selon votre appareil</p>
+                      <p className="text-xs text-text-muted mt-2 leading-relaxed">
+                        S'adapte automatiquement à l'apparence de votre système d'exploitation (mode clair le jour, mode sombre la nuit).
+                      </p>
+                    </div>
+
+                    {/* Miniature UI Mockup */}
+                    <div className="p-3 rounded-xl bg-surface-alt border border-border space-y-2 mt-4 select-none pointer-events-none flex flex-col items-center justify-center min-h-[66px]">
+                      <Monitor className="w-6 h-6 text-text-muted" />
+                      <p className="text-[10px] text-text-secondary font-medium">
+                        Détecté : <span className="font-bold text-gold">{resolvedTheme === 'dark' ? 'Mode Sombre' : 'Mode Clair'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-border flex items-center justify-between text-xs">
+                    <span className="text-text-muted">Détection auto</span>
+                    <span className={`font-semibold ${theme === 'system' ? 'text-gold' : 'text-text-secondary'}`}>
+                      {theme === 'system' ? '✓ Actif' : 'Sélectionner'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Design System Swatches / Live Token Preview */}
+              <div className="p-6 rounded-2xl bg-surface border border-border space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-gold" />
+                    <h3 className="text-sm font-bold text-text">Nuancier Actuel en Direct</h3>
+                  </div>
+                  <span className="text-xs text-text-muted">Rendu dynamique Tailwind v4</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <div className="p-3 rounded-xl bg-surface-alt border border-border flex flex-col gap-1.5">
+                    <div className="w-full h-8 rounded-lg bg-gold shadow-sm flex items-center justify-center text-[10px] font-bold text-black">
+                      Or Accent
+                    </div>
+                    <span className="text-[11px] font-semibold text-text">Signature Gold</span>
+                    <span className="text-[10px] text-text-muted font-mono">var(--theme-gold)</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-surface-alt border border-border flex flex-col gap-1.5">
+                    <div className="w-full h-8 rounded-lg bg-surface border border-border flex items-center justify-center text-[10px] font-bold text-text">
+                      Surface
+                    </div>
+                    <span className="text-[11px] font-semibold text-text">Fond Cartes</span>
+                    <span className="text-[10px] text-text-muted font-mono">var(--theme-surface)</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-surface-alt border border-border flex flex-col gap-1.5">
+                    <div className="w-full h-8 rounded-lg bg-bg border border-border flex items-center justify-center text-[10px] font-bold text-text">
+                      Arrière-plan
+                    </div>
+                    <span className="text-[11px] font-semibold text-text">Fond Global</span>
+                    <span className="text-[10px] text-text-muted font-mono">var(--theme-bg)</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-surface-alt border border-border flex flex-col gap-1.5">
+                    <div className="w-full h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-[10px] font-bold text-emerald-500">
+                      Succès
+                    </div>
+                    <span className="text-[11px] font-semibold text-text">Paiements & Encaissé</span>
+                    <span className="text-[10px] text-text-muted font-mono">#10B981</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-surface-alt border border-border flex flex-col gap-1.5">
+                    <div className="w-full h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-[10px] font-bold text-amber-500">
+                      Avertissement
+                    </div>
+                    <span className="text-[11px] font-semibold text-text">Échéances & Dettes</span>
+                    <span className="text-[10px] text-text-muted font-mono">#F59E0B</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-surface-alt border border-border flex flex-col gap-1.5">
+                    <div className="w-full h-8 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center text-[10px] font-bold text-red-500">
+                      Danger
+                    </div>
+                    <span className="text-[11px] font-semibold text-text">Alertes & Annulations</span>
+                    <span className="text-[10px] text-text-muted font-mono">#EF4444</span>
+                  </div>
                 </div>
               </div>
             </div>

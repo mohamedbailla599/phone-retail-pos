@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { clsx } from 'clsx';
 import { usePosStore } from '../store/posStore';
 import { useAuthStore } from '../store/authStore';
 import { posApi, type CatalogItem } from '../api/sales';
@@ -39,6 +40,7 @@ export default function POSPage() {
   const { operator } = useAuthStore();
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'device' | 'accessory'>('all');
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [isOpModalOpen, setIsOpModalOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
@@ -439,10 +441,17 @@ export default function POSPage() {
     }
   };
 
-  const filteredCatalog = catalog.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (p.sub && p.sub.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const devicesCount = catalog.filter((p) => p.type === 'device').length;
+  const accessoriesCount = catalog.filter((p) => p.type === 'accessory').length;
+
+  const filteredCatalog = catalog.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (p.sub && p.sub.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory =
+      categoryFilter === 'all' || p.type === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   const isDraft = !transaction || transaction.status === 'DRAFT';
   const isCompleted = transaction?.status === 'COMPLETED';
@@ -476,7 +485,7 @@ export default function POSPage() {
             </div>
           )}
           
-          {/* Search Bar */}
+          {/* Search Bar & Filter Pills */}
           <div className="px-6 py-4 border-b border-border bg-surface/50">
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
@@ -491,41 +500,149 @@ export default function POSPage() {
                 disabled={!isDraft}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <kbd className="hidden sm:inline-flex h-5 px-1.5 items-center rounded text-[10px] font-semibold text-text-muted bg-[rgba(255,255,255,0.06)] border border-border">/</kbd>
+                <kbd className="hidden sm:inline-flex h-5 px-1.5 items-center rounded text-[10px] font-semibold text-text-muted bg-surface-elevated border border-border shadow-xs">/</kbd>
                 <ScanBarcode className="w-4 h-4 text-text-muted" />
               </div>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-2 mt-3 pt-0.5">
+              <button
+                type="button"
+                onClick={() => setCategoryFilter('all')}
+                className={clsx(
+                  'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer',
+                  categoryFilter === 'all'
+                    ? 'bg-gold text-black shadow-sm font-bold'
+                    : 'bg-surface-alt text-text-secondary hover:text-text hover:bg-surface-elevated border border-border'
+                )}
+              >
+                <span>Tous</span>
+                <span
+                  className={clsx(
+                    'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
+                    categoryFilter === 'all' ? 'bg-black/20 text-black' : 'bg-surface text-text-muted'
+                  )}
+                >
+                  {catalog.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCategoryFilter('device')}
+                className={clsx(
+                  'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer',
+                  categoryFilter === 'device'
+                    ? 'bg-gold text-black shadow-sm font-bold'
+                    : 'bg-surface-alt text-text-secondary hover:text-text hover:bg-surface-elevated border border-border'
+                )}
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Téléphones</span>
+                <span
+                  className={clsx(
+                    'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
+                    categoryFilter === 'device' ? 'bg-black/20 text-black' : 'bg-surface text-text-muted'
+                  )}
+                >
+                  {devicesCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCategoryFilter('accessory')}
+                className={clsx(
+                  'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer',
+                  categoryFilter === 'accessory'
+                    ? 'bg-gold text-black shadow-sm font-bold'
+                    : 'bg-surface-alt text-text-secondary hover:text-text hover:bg-surface-elevated border border-border'
+                )}
+              >
+                <Headphones className="w-3.5 h-3.5" />
+                <span>Accessoires</span>
+                <span
+                  className={clsx(
+                    'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
+                    categoryFilter === 'accessory' ? 'bg-black/20 text-black' : 'bg-surface text-text-muted'
+                  )}
+                >
+                  {accessoriesCount}
+                </span>
+              </button>
             </div>
           </div>
 
           {/* Product Grid */}
           <div className="flex-1 overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Products</h2>
-              <span className="text-xs text-text-muted">{filteredCatalog.length} items</span>
+              <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                {categoryFilter === 'device'
+                  ? 'Téléphones & Appareils'
+                  : categoryFilter === 'accessory'
+                  ? 'Accessoires'
+                  : 'Tous les produits'}
+              </h2>
+              <span className="text-xs text-text-muted">{filteredCatalog.length} articles</span>
             </div>
 
-            <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-              {filteredCatalog.map((product) => {
-                const Icon = product.type === 'device' ? Phone : Headphones;
-                return (
+            {filteredCatalog.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-surface-alt border border-border flex items-center justify-center text-text-muted mb-3">
+                  {categoryFilter === 'device' ? (
+                    <Phone className="w-6 h-6" />
+                  ) : categoryFilter === 'accessory' ? (
+                    <Headphones className="w-6 h-6" />
+                  ) : (
+                    <Search className="w-6 h-6" />
+                  )}
+                </div>
+                <h3 className="text-sm font-semibold text-text">Aucun article trouvé</h3>
+                <p className="text-xs text-text-muted mt-1 max-w-xs">
+                  {searchQuery
+                    ? `Aucun résultat pour "${searchQuery}" dans cette sélection.`
+                    : 'Aucun article disponible pour ce filtre.'}
+                </p>
+                {(searchQuery || categoryFilter !== 'all') && (
                   <button
-                    key={product.id}
-                    onClick={() => handleProductClick(product)}
-                    className="group flex flex-col p-4 rounded-[var(--radius-lg)] bg-surface border border-border hover:border-gold-border/50 hover-lift text-left transition-smooth"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setCategoryFilter('all');
+                    }}
+                    className="mt-4 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-gold bg-gold/10 border border-gold-border hover:bg-gold/20 transition-colors cursor-pointer"
                   >
-                    <div className="w-full aspect-square rounded-[var(--radius-md)] bg-surface-alt mb-3 flex items-center justify-center relative">
-                      <Icon className="w-8 h-8 text-text-muted group-hover:text-gold/60 transition-smooth" />
-                    </div>
-                    <h3 className="text-[13px] font-semibold text-text truncate">{product.name}</h3>
-                    <p className="text-[11px] text-text-muted mt-0.5 truncate">{product.sub}</p>
-                    <div className="mt-2 flex items-center justify-between">
-                      <PriceDisplay amount={parseFloat(product.price)} size="sm" highlight />
-                      <Badge variant="success" dot>{product.stock_count} In Stock</Badge>
-                    </div>
+                    Réinitialiser les filtres
                   </button>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                {filteredCatalog.map((product) => {
+                  const Icon = product.type === 'device' ? Phone : Headphones;
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => handleProductClick(product)}
+                      className="group flex flex-col p-4 rounded-[var(--radius-lg)] bg-surface border border-border hover:border-gold-border/50 hover-lift text-left transition-smooth cursor-pointer"
+                    >
+                      <div className="w-full aspect-square rounded-[var(--radius-md)] bg-surface-alt mb-3 flex items-center justify-center relative">
+                        <Icon className="w-8 h-8 text-text-muted group-hover:text-gold/60 transition-smooth" />
+                        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-surface/80 border border-border text-text-muted">
+                          {product.type === 'device' ? 'Phone' : 'Acc'}
+                        </span>
+                      </div>
+                      <h3 className="text-[13px] font-semibold text-text truncate">{product.name}</h3>
+                      <p className="text-[11px] text-text-muted mt-0.5 truncate">{product.sub}</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <PriceDisplay amount={parseFloat(product.price)} size="sm" highlight />
+                        <Badge variant="success" dot>{product.stock_count} In Stock</Badge>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -644,7 +761,7 @@ export default function POSPage() {
                 {transaction.items.map((item, idx) => (
                   <div
                     key={`${item.id}-${idx}`}
-                    className="group flex items-center gap-3 px-5 py-3.5 hover:bg-[rgba(255,255,255,0.02)] transition-fast"
+                    className="group flex items-center gap-3 px-5 py-3.5 hover:bg-surface-hover transition-colors"
                   >
                     {/* Item icon */}
                     <div className="w-9 h-9 rounded-[var(--radius-sm)] bg-surface-alt border border-border flex items-center justify-center flex-shrink-0 print:hidden">

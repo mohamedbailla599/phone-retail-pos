@@ -55,13 +55,13 @@ export function Select({
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full h-10 px-3 flex items-center justify-between text-sm transition-colors rounded-[var(--radius-md)] border text-left",
-          "bg-[rgba(255,255,255,0.02)] focus:outline-none",
+          "w-full h-10 px-3.5 flex items-center justify-between text-sm transition-all rounded-[var(--radius-md)] border text-left",
+          "bg-surface-alt focus:outline-none focus:ring-2 focus:ring-gold/30",
           error 
-            ? "border-red-500/50 text-red-500 focus:border-red-500" 
-            : "border-border text-text focus:border-gold/50 hover:bg-[rgba(255,255,255,0.04)]",
+            ? "border-danger text-danger focus:border-danger focus:ring-danger/20" 
+            : "border-border text-text hover:border-border-focus focus:border-gold-border hover:bg-surface-elevated",
           disabled && "opacity-50 cursor-not-allowed",
-          isOpen && !error && "border-gold/50"
+          isOpen && !error && "border-gold-border ring-2 ring-gold/20"
         )}
       >
         <span className={!selectedOption ? "text-text-muted" : "truncate"}>
@@ -71,8 +71,8 @@ export function Select({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-surface border border-border rounded-[var(--radius-md)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-          <ul className="max-h-60 overflow-auto py-1">
+        <div className="absolute z-50 w-full mt-1.5 bg-surface-elevated border border-border rounded-[var(--radius-md)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          <ul className="max-h-60 overflow-auto py-1 divide-y divide-border/20">
             {options.map((option) => (
               <li
                 key={option.value}
@@ -81,14 +81,14 @@ export function Select({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors",
+                  "flex items-center justify-between px-3.5 py-2.5 text-sm cursor-pointer transition-colors",
                   value === option.value
-                    ? "bg-gold/10 text-gold"
-                    : "text-text hover:bg-[rgba(255,255,255,0.05)]"
+                    ? "bg-gold/15 text-gold font-medium"
+                    : "text-text hover:bg-surface-hover"
                 )}
               >
                 <span className="truncate">{option.label}</span>
-                {value === option.value && <Check className="w-4 h-4" />}
+                {value === option.value && <Check className="w-4 h-4 text-gold flex-shrink-0 ml-2" />}
               </li>
             ))}
             {options.length === 0 && (

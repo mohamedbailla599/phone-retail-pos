@@ -113,7 +113,7 @@ export default function ReceiveAccessoryModal({ isOpen, onClose, onSuccess }: Pr
         <div className="w-full max-w-md bg-surface border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-text">Receive Accessory</h2>
-          <button onClick={onClose} className="p-2 rounded-lg text-text-muted hover:bg-[rgba(255,255,255,0.05)] transition-colors">
+          <button onClick={onClose} className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -146,9 +146,9 @@ export default function ReceiveAccessoryModal({ isOpen, onClose, onSuccess }: Pr
               </div>
 
               {selectedStock && (
-                <div className="p-3 bg-[rgba(255,255,255,0.02)] border border-border/50 rounded-[var(--radius-md)] flex items-center justify-between">
+                <div className="p-3 bg-surface-alt border border-border rounded-[var(--radius-md)] flex items-center justify-between">
                   <span className="text-sm text-text-muted">Current Stock:</span>
-                  <span className="text-sm font-medium text-text">{currentStock}</span>
+                  <span className="text-sm font-semibold text-text">{currentStock}</span>
                 </div>
               )}
 
@@ -160,13 +160,13 @@ export default function ReceiveAccessoryModal({ isOpen, onClose, onSuccess }: Pr
                   required
                   value={formData.quantity}
                   onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  className="w-full h-10 px-3 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold/50 focus:outline-none"
+                  className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
                 />
               </div>
 
               {selectedStock && qty > 0 && (
-                <div className="p-3 bg-gold/10 border border-gold/20 rounded-[var(--radius-md)] flex items-center justify-between">
-                  <span className="text-sm text-gold/80">New Stock (Projected):</span>
+                <div className="p-3 bg-gold/10 border border-gold-border/50 rounded-[var(--radius-md)] flex items-center justify-between">
+                  <span className="text-sm text-gold font-medium">New Stock (Projected):</span>
                   <span className="text-sm font-bold text-gold">{projectedStock}</span>
                 </div>
               )}
@@ -177,14 +177,14 @@ export default function ReceiveAccessoryModal({ isOpen, onClose, onSuccess }: Pr
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 rounded-[var(--radius-md)] font-medium text-text-secondary hover:text-text hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                className="px-4 py-2 rounded-[var(--radius-md)] font-medium text-text-secondary hover:text-text hover:bg-surface-hover transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading || !formData.accessory_stock_id || qty < 1}
-                className="px-4 py-2 rounded-[var(--radius-md)] font-semibold text-black bg-gold hover:bg-gold-hover transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 rounded-[var(--radius-md)] font-semibold text-black bg-gold hover:bg-gold-bright transition-all shadow-[0_2px_12px_rgba(212,175,90,0.25)] disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Receive Stock

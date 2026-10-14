@@ -230,13 +230,13 @@ export function ExchangesPage() {
             {/* Filter & Search Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-surface p-4 rounded-xl border border-border">
               <div className="relative flex-1 min-w-[240px] max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by number, customer, phone, IMEI..."
-                  className="w-full pl-10 pr-4 h-10 bg-[rgba(255,255,255,0.03)] border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold/50 transition-colors"
+                  className="w-full pl-10 pr-4 h-10 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
                 />
               </div>
 

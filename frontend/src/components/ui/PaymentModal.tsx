@@ -147,7 +147,7 @@ export default function PaymentModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 -mr-2 -mt-2 text-text-muted hover:text-white hover:bg-[rgba(255,255,255,0.05)] rounded-full transition-colors"
+            className="p-2 -mr-2 -mt-2 text-text-muted hover:text-text hover:bg-surface-hover rounded-full transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

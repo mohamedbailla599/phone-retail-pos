@@ -63,7 +63,7 @@ export default function Modal({
       ref={overlayRef}
       className={cn(
         'fixed inset-0 z-50 flex items-center justify-center p-4',
-        'bg-black/70 backdrop-blur-sm',
+        'bg-black/70 backdrop-blur-md',
         'animate-[fadeIn_150ms_ease-out]',
         'print:hidden',
       )}
@@ -75,19 +75,19 @@ export default function Modal({
         className={cn(
           'w-full max-h-[90vh] flex flex-col',
           'bg-surface-elevated border border-border rounded-[var(--radius-xl)]',
-          'shadow-2xl shadow-black/60',
+          'shadow-xl',
           'animate-[scaleIn_200ms_cubic-bezier(0.16,1,0.3,1)]',
           sizeClasses[size] || 'max-w-md',
           className,
         )}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/40 flex-shrink-0">
-            <h3 className="text-base font-semibold text-text">{title}</h3>
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50 flex-shrink-0">
+            <h3 className="text-[15px] font-semibold text-text tracking-tight">{title}</h3>
             <button
               onClick={onClose}
               type="button"
-              className="w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] text-text-muted hover:text-text hover:bg-[rgba(255,255,255,0.06)] transition-fast"
+              className="w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] text-text-muted hover:text-text hover:bg-surface-hover transition-fast"
             >
               <X className="w-4 h-4" />
             </button>
@@ -100,4 +100,3 @@ export default function Modal({
     </div>
   );
 }
-

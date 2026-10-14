@@ -85,13 +85,13 @@ export default function DevicesPage() {
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-4 mb-6">
             <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name, SKU, IMEI, Serial..."
-                className="w-full pl-10 pr-4 h-10 bg-[rgba(255,255,255,0.02)] border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold/50 focus:bg-[rgba(255,255,255,0.04)] transition-all"
+                className="w-full pl-10 pr-4 h-10 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
               />
             </div>
             <div className="w-[180px]">
@@ -136,7 +136,7 @@ export default function DevicesPage() {
           </div>
 
           {/* Table */}
-          <div className="bg-surface border border-border rounded-[var(--radius-lg)] overflow-hidden relative min-h-[200px]">
+          <div className="bg-surface border border-border rounded-[var(--radius-lg)] overflow-hidden relative min-h-[200px] shadow-sm">
             {loading && (
               <div className="absolute inset-0 bg-surface/50 backdrop-blur-sm flex items-center justify-center z-10">
                 <Loader2 className="w-8 h-8 text-gold animate-spin" />
@@ -144,20 +144,20 @@ export default function DevicesPage() {
             )}
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-border bg-[rgba(255,255,255,0.02)]">
-                  <th className="px-4 py-3 font-medium text-text-secondary">Product</th>
-                  <th className="px-4 py-3 font-medium text-text-secondary">SKU</th>
-                  <th className="px-4 py-3 font-medium text-text-secondary">Identifier</th>
-                  <th className="px-4 py-3 font-medium text-text-secondary text-right">Cost</th>
-                  <th className="px-4 py-3 font-medium text-text-secondary text-right">Price</th>
-                  <th className="px-4 py-3 font-medium text-text-secondary">Cond/Batt</th>
-                  <th className="px-4 py-3 font-medium text-text-secondary">Status</th>
-                  <th className="px-4 py-3 font-medium text-text-secondary text-right">Actions</th>
+                <tr className="border-b border-border bg-surface-alt">
+                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Product</th>
+                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">SKU</th>
+                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Identifier</th>
+                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Cost</th>
+                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Price</th>
+                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Cond/Batt</th>
+                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {devices.map((device) => (
-                  <tr key={device.id} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                  <tr key={device.id} className="hover:bg-surface-hover transition-colors">
                     <td className="px-4 py-3">
                       <p className="font-medium text-text">{device.product.name}</p>
                       <p className="text-xs text-text-muted">{device.product.brand}</p>

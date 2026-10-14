@@ -1,12 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  MultiFormatReader,
+  BrowserMultiFormatReader,
   BarcodeFormat,
   DecodeHintType,
-  RGBLuminanceSource,
-  BinaryBitmap,
-  HybridBinarizer,
 } from '@zxing/library';
 import {
   Camera,
@@ -136,19 +133,18 @@ export default function ScannerPage() {
   // Refs for camera and decoding loop
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isScanningRef = useRef(false);
   const isProcessingRef = useRef(false);
   const lastScannedTimeRef = useRef(0);
   const lastScannedCodeRef = useRef('');
   const scanLoopTimerRef = useRef<any>(null);
   const barcodeDetectorRef = useRef<any>(null);
-  const zxingReaderRef = useRef<MultiFormatReader | null>(null);
+  const zxingReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const manualInputRef = useRef<HTMLInputElement | null>(null);
 
   const opName = operator?.display_name || operator?.username;
 
-  // Initialize ZXing MultiFormatReader once
+  // Initialize ZXing BrowserMultiFormatReader once
   useEffect(() => {
     const hints = new Map<DecodeHintType, any>();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -159,11 +155,11 @@ export default function ScannerPage() {
       BarcodeFormat.CODE_93,
       BarcodeFormat.EAN_8,
       BarcodeFormat.QR_CODE,
+      BarcodeFormat.ITF,
     ]);
     hints.set(DecodeHintType.TRY_HARDER, true);
 
-    const reader = new MultiFormatReader();
-    reader.setHints(hints);
+    const reader = new BrowserMultiFormatReader(hints);
     zxingReaderRef.current = reader;
 
     // Check for native BarcodeDetector support
@@ -312,6 +308,12 @@ export default function ScannerPage() {
       videoRef.current.srcObject = null;
     }
 
+    if (zxingReaderRef.current) {
+      try {
+        zxingReaderRef.current.reset();
+      } catch (e) {}
+    }
+
     setCameraActive(false);
     setStartingCamera(false);
   }, []);
@@ -342,45 +344,43 @@ export default function ScannerPage() {
       }
     }
 
-    // 2. Fallback to ZXing MultiFormatReader via hidden off-screen canvas
+    // 2. Primary: ZXing BrowserMultiFormatReader directly on the video element
+    // BrowserMultiFormatReader automatically captures frames to canvas,
+    // converts RGBA to proper grayscale luminances via HTMLCanvasElementLuminanceSource,
+    // applies HybridBinarizer, and automatically retries with GlobalHistogramBinarizer for computer screens.
     if (zxingReaderRef.current) {
       try {
-        if (!canvasRef.current) {
-          canvasRef.current = document.createElement('canvas');
-        }
-        const canvas = canvasRef.current;
-        const width = Math.min(video.videoWidth, 1280);
-        const height = Math.min(video.videoHeight, 720);
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) return;
-
-        ctx.drawImage(video, 0, 0, width, height);
-        const imgData = ctx.getImageData(0, 0, width, height);
-
-        // 2a. Real-time Code 11 (USD-8) decoder
-        const code11 = decodeCode11FromImageData(imgData);
-        if (code11 && code11.trim().length >= 3) {
-          handleBarcodeScanned(code11.trim());
-          return;
-        }
-
-        // 2b. ZXing MultiFormatReader (Code 128, EAN-13, UPC, Code 39, QR)
-        const lumSource = new RGBLuminanceSource(imgData.data, width, height);
-        const bitmap = new BinaryBitmap(new HybridBinarizer(lumSource));
-        const result = zxingReaderRef.current.decodeWithState(bitmap);
-
+        const result = zxingReaderRef.current.decode(video);
         if (result && result.getText()) {
           const text = result.getText().trim();
           if (text.length >= 3) {
             handleBarcodeScanned(text);
+            return;
           }
         }
       } catch (e) {
-        // NotFoundException is normal when no barcode is in frame
+        // NotFoundException is expected when no barcode is in frame
       }
+    }
+
+    // 3. Optional fallback: Code 11 (only if length >= 10 to prevent false-positive fragments)
+    try {
+      if (zxingReaderRef.current) {
+        const canvas = (zxingReaderRef.current as any).getCaptureCanvas(video);
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code11 = decodeCode11FromImageData(imgData);
+            if (code11 && code11.trim().length >= 10) {
+              handleBarcodeScanned(code11.trim());
+              return;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore fallback errors
     }
   }, [handleBarcodeScanned]);
 

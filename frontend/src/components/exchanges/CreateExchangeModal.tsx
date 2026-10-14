@@ -330,7 +330,7 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
                     setSelectedCustomerId(null);
                   }}
                   placeholder="e.g. Mohamed"
-                  className="w-full h-10 px-3 bg-[rgba(255,255,255,0.03)] border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold/50 transition-colors"
+                  className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
                 />
               </div>
               <div>
@@ -346,7 +346,7 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
                     setSelectedCustomerId(null);
                   }}
                   placeholder="e.g. 0612345678"
-                  className="w-full h-10 px-3 bg-[rgba(255,255,255,0.03)] border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold/50 transition-colors"
+                  className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
                 />
               </div>
             </div>
@@ -393,7 +393,7 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
                   value={tradeInImei}
                   onChange={(e) => setTradeInImei(e.target.value)}
                   placeholder="15-digit IMEI or Serial number"
-                  className="w-full h-10 px-3 font-mono bg-[rgba(255,255,255,0.03)] border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold/50 transition-colors"
+                  className="w-full h-10 px-3 font-mono bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
                 />
               </div>
 
@@ -416,7 +416,7 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
                       value={tradeInBatteryHealth}
                       onChange={(e) => setTradeInBatteryHealth(e.target.value)}
                       placeholder="e.g. 87"
-                      className="w-full h-10 pl-3 pr-8 bg-[rgba(255,255,255,0.03)] border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold/50 transition-colors"
+                      className="w-full h-10 pl-3 pr-8 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
                     />
                     <Battery className="w-4 h-4 text-text-muted absolute right-2.5 top-1/2 -translate-y-1/2" />
                   </div>

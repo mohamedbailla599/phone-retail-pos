@@ -61,7 +61,8 @@ function scanRunsForCode11(runs: Run[]): string | null {
 
         // Reached Stop character
         if (matched === '*') {
-          if (decoded.length >= 3) {
+          // Require at least 10 characters to prevent false-positive matches on standard Code 128/EAN-13 barcodes
+          if (decoded.length >= 10) {
             // Strip C and K check digits if present
             if (decoded.length === 17) return decoded.slice(0, 15);
             if (decoded.length === 16) return decoded.slice(0, 15);

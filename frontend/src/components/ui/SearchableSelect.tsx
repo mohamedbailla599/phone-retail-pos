@@ -58,17 +58,17 @@ export function SearchableSelect({
     <div className={cn("relative w-full", className)} ref={containerRef}>
       <div
         className={cn(
-          "w-full h-10 px-3 flex items-center justify-between text-sm transition-colors rounded-[var(--radius-md)] border text-left",
-          "bg-[rgba(255,255,255,0.02)] focus-within:border-gold/50",
-          error ? "border-red-500/50" : "border-border",
+          "w-full h-10 px-3.5 flex items-center justify-between text-sm transition-all rounded-[var(--radius-md)] border text-left",
+          "bg-surface-alt focus-within:ring-2 focus-within:ring-gold/30 focus-within:border-gold-border",
+          error ? "border-danger focus-within:border-danger focus-within:ring-danger/20" : "border-border hover:border-border-focus",
           disabled && "opacity-50 cursor-not-allowed",
-          isOpen && !error && "border-gold/50"
+          isOpen && !error && "border-gold-border ring-2 ring-gold/20"
         )}
         onClick={() => !disabled && setIsOpen(true)}
       >
         <div className="flex items-center gap-2 w-full flex-1 min-w-0">
           {!isOpen && selectedOption ? (
-             <span className="text-text truncate cursor-pointer w-full">{selectedOption.label}</span>
+             <span className="text-text truncate cursor-pointer w-full font-medium">{selectedOption.label}</span>
           ) : (
             <>
               <Search className="w-4 h-4 text-text-muted shrink-0" />
@@ -78,7 +78,7 @@ export function SearchableSelect({
                 placeholder={selectedOption ? selectedOption.label : placeholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-transparent border-none focus:outline-none text-text w-full placeholder:text-text-muted truncate"
+                className="bg-transparent border-none focus:outline-none text-text w-full placeholder:text-text-muted truncate text-sm"
               />
             </>
           )}
@@ -87,14 +87,14 @@ export function SearchableSelect({
           {loading ? (
             <Loader2 className="w-4 h-4 text-gold animate-spin" />
           ) : (
-            <ChevronDown className={cn("w-4 h-4 text-text-muted transition-transform duration-200 cursor-pointer", isOpen && "rotate-180")} onClick={(e) => { e.stopPropagation(); if(!disabled) setIsOpen(!isOpen); }} />
+            <ChevronDown className={cn("w-4 h-4 text-text-muted transition-transform duration-200 cursor-pointer hover:text-text", isOpen && "rotate-180")} onClick={(e) => { e.stopPropagation(); if(!disabled) setIsOpen(!isOpen); }} />
           )}
         </div>
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-surface border border-border rounded-[var(--radius-md)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-          <ul className="max-h-60 overflow-auto py-1">
+        <div className="absolute z-50 w-full mt-1.5 bg-surface-elevated border border-border rounded-[var(--radius-md)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          <ul className="max-h-60 overflow-auto py-1 divide-y divide-border/20">
             {options.map((option) => (
               <li
                 key={option.value}
@@ -104,15 +104,15 @@ export function SearchableSelect({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "flex flex-col px-3 py-2 text-sm cursor-pointer transition-colors",
+                  "flex flex-col px-3.5 py-2.5 text-sm cursor-pointer transition-colors",
                   value === option.value
-                    ? "bg-gold/10 text-gold"
-                    : "text-text hover:bg-[rgba(255,255,255,0.05)]"
+                    ? "bg-gold/15 text-gold font-medium"
+                    : "text-text hover:bg-surface-hover"
                 )}
               >
                 <div className="flex items-center justify-between">
                   <span className="truncate">{option.label}</span>
-                  {value === option.value && <Check className="w-4 h-4 shrink-0" />}
+                  {value === option.value && <Check className="w-4 h-4 shrink-0 text-gold ml-2" />}
                 </div>
                 {option.description && (
                   <span className="text-xs text-text-muted truncate mt-0.5">{option.description}</span>
