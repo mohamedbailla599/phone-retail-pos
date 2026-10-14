@@ -51,6 +51,27 @@ def record_debt_payment(
     customer.current_debt -= amount
     customer.save(update_fields=["current_debt", "updated_at"])
 
+    # Log audit event
+    if operator:
+        try:
+            from apps.audit.models import AuditLog
+            AuditLog.objects.create(
+                actor=operator,
+                action=AuditLog.Action.CUSTOMER_DEBT_PAYMENT,
+                entity_type="Customer",
+                entity_id=customer.id,
+                old_values={"current_debt": str(customer.current_debt + amount)},
+                new_values={
+                    "current_debt": str(customer.current_debt),
+                    "repayment_amount": str(amount),
+                    "payment_method": payment_method,
+                    "customer_name": customer.full_name,
+                },
+                reason=f"Règlement dette client {customer.full_name}: {amount} DH ({payment_method})",
+            )
+        except Exception:
+            pass
+
     return payment, customer
 
 

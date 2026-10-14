@@ -48,6 +48,9 @@ class AuditLog(models.Model):
         USER_UPDATED = "USER_UPDATED", "User Updated"
         USER_DEACTIVATED = "USER_DEACTIVATED", "User Deactivated"
 
+        CUSTOMER_CREATED = "CUSTOMER_CREATED", "Customer Created"
+        CUSTOMER_DEBT_PAYMENT = "CUSTOMER_DEBT_PAYMENT", "Customer Debt Payment"
+
         SETTINGS_CHANGED = "SETTINGS_CHANGED", "Settings Changed"
 
     actor = models.ForeignKey(

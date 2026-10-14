@@ -66,7 +66,27 @@ class CustomerListCreateView(generics.ListCreateAPIView):
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        customer = serializer.save()
+
+        try:
+            operator = get_required_operator(request)
+        except Exception:
+            operator = getattr(request, 'user', None)
+
+        if operator:
+            try:
+                from apps.audit.models import AuditLog
+                AuditLog.objects.create(
+                    actor=operator,
+                    action=AuditLog.Action.CUSTOMER_CREATED,
+                    entity_type="Customer",
+                    entity_id=customer.id,
+                    new_values={"full_name": customer.full_name, "phone_number": customer.phone_number},
+                    reason=f"Nouveau client créé: {customer.full_name} ({customer.phone_number})",
+                )
+            except Exception:
+                pass
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

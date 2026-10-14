@@ -11,6 +11,7 @@ import {
   Users,
   Settings,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth';
@@ -26,6 +27,7 @@ const navItems = [
   { icon: ArrowLeftRight, label: 'Exchanges', path: '/exchanges' },
   { icon: Wrench, label: 'Repairs', path: '/repairs' },
   { icon: BarChart3, label: 'Reports', path: '/reports' },
+  { icon: ShieldCheck, label: 'Audit Logs', path: '/audit-logs' },
 ];
 
 const bottomItems = [

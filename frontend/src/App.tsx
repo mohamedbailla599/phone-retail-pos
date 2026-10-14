@@ -12,6 +12,7 @@ import DashboardPage from './pages/DashboardPage';
 import RepairsPage from './pages/RepairsPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportsPage from './pages/ReportsPage';
+import AuditLogsPage from './pages/AuditLogsPage';
 import { Loader2 } from 'lucide-react';
 
 function AuthInitializer({ children }: { children: React.ReactNode }) {
@@ -131,6 +132,12 @@ function App() {
           <Route path="/reports" element={
             <ProtectedRoute>
               <ReportsPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/audit-logs" element={
+            <ProtectedRoute>
+              <AuditLogsPage />
             </ProtectedRoute>
           } />
           
