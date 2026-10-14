@@ -8,6 +8,7 @@ from apps.audit.models import AuditLog
 from apps.audit.services import record_audit
 from apps.customers.models import Customer
 from apps.inventory.models import AccessoryStock, DeviceItem, StockMovement
+from apps.payments.models import Payment
 from apps.sales.models import Transaction, TransactionItem
 from apps.store_settings.models import StoreSettings
 from core.exceptions import (
@@ -135,7 +136,7 @@ def cancel_sale(
     actor,
 ):
     """
-    Cancel a DRAFT sale.
+    Cancel a DRAFT or PENDING_PAYMENT sale, safely cleaning up any payments/debts.
     """
     sale = (
         Transaction.objects
@@ -150,8 +151,21 @@ def cancel_sale(
     if sale is None:
         raise InvalidSale("Sale does not exist.")
 
-    if sale.status != Transaction.Status.DRAFT:
-        raise InvalidSale("Only DRAFT sales can be cancelled.")
+    if sale.status not in (Transaction.Status.DRAFT, Transaction.Status.PENDING_PAYMENT):
+        raise InvalidSale("Only DRAFT or PENDING_PAYMENT sales can be cancelled.")
+
+    # Clean up any payments attached to this sale and reverse any debt added
+    for payment in sale.payments.select_for_update().all():
+        if payment.status == Payment.Status.CONFIRMED:
+            if payment.method == Payment.Method.DEBT and sale.customer:
+                customer = sale.customer
+                customer.current_debt = max(Decimal("0.00"), customer.current_debt - payment.amount)
+                customer.save(update_fields=["current_debt", "updated_at"])
+            payment.status = Payment.Status.REJECTED
+            payment.save(update_fields=["status"])
+        elif payment.status == Payment.Status.PENDING:
+            payment.status = Payment.Status.REJECTED
+            payment.save(update_fields=["status"])
 
     sale.status = Transaction.Status.CANCELLED
     sale.save(update_fields=["status", "updated_at"])

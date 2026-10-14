@@ -25,6 +25,7 @@ import {
   Wifi,
   WifiOff,
   User,
+  Plus,
 } from 'lucide-react';
 
 type PendingAction = 
@@ -373,20 +374,29 @@ export default function POSPage() {
 
   const startNewSale = () => {
     clearCart();
+    setTransaction(null);
     setSuccessMsg('');
     setErrorMsg('');
   };
 
   const handleCancelSale = async () => {
-    if (!transaction?.id) return;
+    if (!transaction?.id) {
+      clearCart();
+      setTransaction(null);
+      setIsCancelModalOpen(false);
+      return;
+    }
     try {
       await posApi.cancelSale(transaction.id);
       setIsCancelModalOpen(false);
       clearCart();
-      setSuccessMsg("Sale cancelled successfully.");
+      setTransaction(null);
+      setSuccessMsg("Vente annulée avec succès. Nouveau panier prêt.");
     } catch (e: any) {
-      setErrorMsg(e.response?.data?.error || "Failed to cancel sale");
+      clearCart();
+      setTransaction(null);
       setIsCancelModalOpen(false);
+      setSuccessMsg("Panier réinitialisé.");
     }
   };
 
@@ -525,27 +535,51 @@ export default function POSPage() {
         <aside className="w-full lg:w-[380px] xl:w-[400px] flex flex-col bg-surface flex-shrink-0">
           
           {/* Cart Header */}
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+          <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-gold" />
               <h2 className="text-sm font-semibold text-text">
-                {isCompleted ? `Receipt ${transaction.receipt_id || transaction.id}` : 'Current Sale'}
+                {isCompleted ? `Reçu ${transaction.receipt_id || transaction.id}` : 'Vente en cours'}
               </h2>
             </div>
-            <div className="flex flex-col items-end">
-              <div className="flex items-center gap-2">
-                <Badge variant={transaction?.items?.length ? 'gold' : 'default'}>{transaction?.items?.length || 0} items</Badge>
-                {/* Scanner connection status */}
-                {wsStatus === 'connected' ? (
-                  <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
-                    <Wifi className="w-3 h-3" /> Scanner
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-semibold text-text-muted">
-                    <WifiOff className="w-3 h-3" />
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center gap-2">
+              {isCompleted ? (
+                <button
+                  type="button"
+                  onClick={startNewSale}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg bg-gold text-black hover:bg-gold-light transition-all shadow-sm active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Nouvelle Vente
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    {wsStatus === 'connected' ? (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                        <Wifi className="w-3 h-3" /> Scanner
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold text-text-muted" title="Scanner déconnecté">
+                        <WifiOff className="w-3 h-3" />
+                      </span>
+                    )}
+                    <Badge variant={transaction?.items?.length ? 'gold' : 'default'}>
+                      {transaction?.items?.length || 0} articles
+                    </Badge>
+                  </div>
+                  {transaction && (transaction.items?.length || transaction.status === 'PENDING_PAYMENT') && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCancelModalOpen(true)}
+                      className="p-1 rounded-md text-text-muted hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-colors"
+                      title="Annuler cette vente et recommencer à zéro"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
@@ -784,24 +818,42 @@ export default function POSPage() {
                 >
                   {transaction?.status === 'PENDING_PAYMENT' ? 'Resume Payment' : 'Complete Payment'}
                 </Button>
-                {transaction?.status === 'PENDING_PAYMENT' && (
+                {transaction?.status === 'PENDING_PAYMENT' ? (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleUnlockCart}
+                      className="text-xs font-semibold text-text-secondary hover:text-gold transition-colors text-left"
+                    >
+                      ← Modifier le panier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCancelModalOpen(true)}
+                      className="text-xs font-semibold text-red-400/90 hover:text-red-300 transition-colors text-right"
+                    >
+                      Annuler la vente
+                    </button>
+                  </div>
+                ) : transaction?.items?.length ? (
                   <button
                     type="button"
-                    onClick={handleUnlockCart}
-                    className="w-full py-1 text-xs font-semibold text-text-secondary hover:text-gold transition-colors text-center"
+                    onClick={() => setIsCancelModalOpen(true)}
+                    className="w-full py-1 text-xs font-medium text-text-muted hover:text-red-400 transition-colors text-center"
                   >
-                    ← Déverrouiller le panier (Modifier)
+                    Vider le panier / Annuler la vente
                   </button>
-                )}
+                ) : null}
               </div>
             ) : (
               <Button
                 variant="primary"
                 size="lg"
                 className="w-full no-print"
+                icon={<Plus className="w-5 h-5" />}
                 onClick={startNewSale}
               >
-                Start New Sale
+                Nouvelle Vente
               </Button>
             )}
           </div>
@@ -839,18 +891,20 @@ export default function POSPage() {
       />
 
       {isCancelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface border border-border rounded-[var(--radius-lg)] p-6 max-w-sm w-full shadow-2xl">
-            <h2 className="text-lg font-bold text-text mb-2">Cancel Sale?</h2>
-            <p className="text-text-muted text-sm mb-6">
-              Are you sure you want to cancel this entire sale? This action cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <Button variant="secondary" onClick={() => setIsCancelModalOpen(false)}>
-                No, Keep Sale
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-surface border border-border rounded-[var(--radius-lg)] p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-text mb-1.5">Annuler la vente en cours ?</h2>
+              <p className="text-text-muted text-xs leading-relaxed">
+                Êtes-vous sûr de vouloir abandonner cette vente et recommencer à zéro ? Tous les articles et paiements en attente associés à cette vente seront annulés.
+              </p>
+            </div>
+            <div className="flex gap-2.5 justify-end pt-2">
+              <Button variant="secondary" size="sm" onClick={() => setIsCancelModalOpen(false)}>
+                Conserver la vente
               </Button>
-              <Button variant="primary" className="!bg-red-500 hover:!bg-red-600 !text-white !border-transparent" onClick={handleCancelSale}>
-                Yes, Cancel Sale
+              <Button variant="primary" size="sm" className="!bg-red-500 hover:!bg-red-600 !text-white !border-transparent" onClick={handleCancelSale}>
+                Oui, Annuler
               </Button>
             </div>
           </div>
