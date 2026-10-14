@@ -8,11 +8,10 @@ class RefundPaymentAllocationSerializer(serializers.ModelSerializer):
             "id",
             "payment",
             "amount",
-            "allocated_at",
         ]
 
 class RefundSerializer(serializers.ModelSerializer):
-    allocations = RefundPaymentAllocationSerializer(many=True, read_only=True)
+    allocations = RefundPaymentAllocationSerializer(source="payment_allocations", many=True, read_only=True)
     customer_name = serializers.SerializerMethodField()
     customer_phone = serializers.SerializerMethodField()
     source_label = serializers.SerializerMethodField()

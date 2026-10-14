@@ -31,7 +31,7 @@ class RefundListView(APIView):
                 "completed_by",
                 "rejected_by",
             )
-            .prefetch_related("allocations")
+            .prefetch_related("payment_allocations")
             .order_by("-id")
         )
         serializer = RefundSerializer(refunds, many=True)
@@ -51,7 +51,7 @@ class RefundDetailView(APIView):
                 "completed_by",
                 "rejected_by",
             )
-            .prefetch_related("allocations")
+            .prefetch_related("payment_allocations")
             .filter(id=refund_id)
             .first()
         )

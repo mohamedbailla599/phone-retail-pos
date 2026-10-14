@@ -54,15 +54,29 @@ export default function ReturnsRefundsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [returnsData, refundsData] = await Promise.all([
+      const [returnsRes, refundsRes] = await Promise.allSettled([
         returnsApi.getReturns(),
         returnsApi.getRefunds(),
       ]);
-      setReturns(returnsData);
-      setRefunds(refundsData);
+
+      if (returnsRes.status === 'fulfilled') {
+        setReturns(returnsRes.value);
+      } else {
+        console.error('Failed to load returns', returnsRes.reason);
+      }
+
+      if (refundsRes.status === 'fulfilled') {
+        setRefunds(refundsRes.value);
+      } else {
+        console.error('Failed to load refunds', refundsRes.reason);
+      }
+
+      if (returnsRes.status === 'rejected' && refundsRes.status === 'rejected') {
+        setError('Impossible de charger les données des retours et remboursements.');
+      }
     } catch (err: any) {
       console.error('Failed to load returns and refunds', err);
-      setError('Impossible de charger les données des retours et remboursements.');
+      setError('Impossible de charger les données.');
     } finally {
       setLoading(false);
     }
@@ -397,26 +411,26 @@ export default function ReturnsRefundsPage() {
                 <select
                   value={returnStatusFilter}
                   onChange={(e) => setReturnStatusFilter(e.target.value)}
-                  className="px-3 py-1.5 bg-surface-2 border border-border rounded-lg text-xs text-text focus:outline-none focus:border-gold"
+                  className="px-3 py-1.5 bg-[#171717] border border-border rounded-lg text-xs text-[#F5F5F5] focus:outline-none focus:border-gold cursor-pointer"
                 >
-                  <option value="ALL">Tous statuts</option>
-                  <option value="REQUESTED">En attente</option>
-                  <option value="APPROVED">Approuvé</option>
-                  <option value="RESTOCKED">Restocké</option>
-                  <option value="REFUNDED">Remboursé</option>
-                  <option value="REJECTED">Rejeté</option>
+                  <option value="ALL" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Tous statuts</option>
+                  <option value="REQUESTED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">En attente</option>
+                  <option value="APPROVED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Approuvé</option>
+                  <option value="RESTOCKED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Restocké</option>
+                  <option value="REFUNDED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Remboursé</option>
+                  <option value="REJECTED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Rejeté</option>
                 </select>
               ) : (
                 <select
                   value={refundStatusFilter}
                   onChange={(e) => setRefundStatusFilter(e.target.value)}
-                  className="px-3 py-1.5 bg-surface-2 border border-border rounded-lg text-xs text-text focus:outline-none focus:border-gold"
+                  className="px-3 py-1.5 bg-[#171717] border border-border rounded-lg text-xs text-[#F5F5F5] focus:outline-none focus:border-gold cursor-pointer"
                 >
-                  <option value="ALL">Tous statuts</option>
-                  <option value="REQUESTED">Demandé</option>
-                  <option value="APPROVED">Approuvé</option>
-                  <option value="COMPLETED">Clôturé</option>
-                  <option value="REJECTED">Rejeté</option>
+                  <option value="ALL" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Tous statuts</option>
+                  <option value="REQUESTED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Demandé</option>
+                  <option value="APPROVED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Approuvé</option>
+                  <option value="COMPLETED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Clôturé</option>
+                  <option value="REJECTED" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">Rejeté</option>
                 </select>
               )}
             </div>

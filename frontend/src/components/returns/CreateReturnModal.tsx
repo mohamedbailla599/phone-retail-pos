@@ -408,21 +408,23 @@ export default function CreateReturnModal({
               <select
                 value={reasonPreset}
                 onChange={(e) => setReasonPreset(e.target.value)}
-                className="w-full px-3 py-2 bg-surface-2 border border-border rounded-lg text-xs text-text focus:outline-none focus:border-gold"
+                className="w-full px-3 py-2 bg-[#171717] border border-border rounded-lg text-xs text-[#F5F5F5] focus:outline-none focus:border-gold cursor-pointer"
               >
-                <option value="Panne au déballage / Appareil défectueux">
+                <option value="Panne au déballage / Appareil défectueux" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">
                   Panne au déballage / Appareil défectueux (SAV)
                 </option>
-                <option value="Incompatibilité / Erreur produit">
+                <option value="Incompatibilité / Erreur produit" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">
                   Incompatibilité / Erreur d'achat
                 </option>
-                <option value="Rétractation client sous 48h">
+                <option value="Rétractation client sous 48h" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">
                   Rétractation client sous 48h
                 </option>
-                <option value="Accessoire non fonctionnel">
+                <option value="Accessoire non fonctionnel" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">
                   Accessoire défectueux / non fonctionnel
                 </option>
-                <option value="Autre motif">Autre motif particulier</option>
+                <option value="Autre motif" className="bg-[#1a1a1c] text-[#F5F5F5] py-1.5">
+                  Autre motif particulier
+                </option>
               </select>
 
               <input

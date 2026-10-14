@@ -113,6 +113,26 @@
     -webkit-text-fill-color: #F5F5F5 !important;
     caret-color: #F5F5F5 !important;
   }
+
+  /* Universal dark select & option styles */
+  select {
+    color-scheme: dark !important;
+    background-color: #171717 !important;
+    color: #F5F5F5 !important;
+  }
+
+  select option {
+    background-color: #1a1a1c !important;
+    color: #F5F5F5 !important;
+    font-weight: 500;
+    padding: 8px 12px;
+  }
+
+  select option:checked,
+  select option:hover {
+    background-color: #2a2a2e !important;
+    color: #D4AF5A !important;
+  }
 }
 
 /* ============================================
