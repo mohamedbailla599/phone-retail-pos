@@ -481,7 +481,7 @@ class DashboardStatsView(APIView):
         recent_sales = []
         for s in Transaction.objects.filter(status=Transaction.Status.COMPLETED).order_by("-created_at")[:5]:
             customer_label = s.customer_name or (s.customer.full_name if s.customer else None) or "Walk-in Customer"
-            customer_phone = s.customer_phone or (s.customer.phone if s.customer else None) or ""
+            customer_phone = s.customer_phone or (s.customer.phone_number if s.customer else None) or ""
             recent_sales.append({
                 "id": s.id,
                 "receipt_id": s.receipt_id,
