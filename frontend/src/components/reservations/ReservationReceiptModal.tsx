@@ -1,10 +1,9 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import PriceDisplay from '../ui/PriceDisplay';
 import { type Reservation } from '../../api/reservations';
 import { useSettingsStore } from '../../store/settingsStore';
-import { Printer, X, Calendar, User, Phone, Smartphone, CheckCircle } from 'lucide-react';
+import { Printer } from 'lucide-react';
 
 interface ReservationReceiptModalProps {
   isOpen: boolean;

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Badge from '../ui/Badge';
-import PriceDisplay from '../ui/PriceDisplay';
 import { reservationsApi, type Reservation } from '../../api/reservations';
 import { inventoryApi, type DeviceItem } from '../../api/inventory';
 import { type Customer } from '../../api/customers';
@@ -13,11 +12,9 @@ import {
   Smartphone,
   User,
   Plus,
-  Calendar,
   AlertCircle,
   Loader2,
   CheckCircle,
-  ArrowRight,
   Search,
 } from 'lucide-react';
 
@@ -243,7 +240,7 @@ export default function CreateReservationModal({
                   <div>
                     <div className="font-semibold text-neutral-100 flex items-center gap-2">
                       {selectedCustomer.full_name || (selectedCustomer as any).name}
-                      <Badge variant="success" size="sm">Client sélectionné</Badge>
+                      <Badge variant="success">Client sélectionné</Badge>
                     </div>
                     <div className="text-xs text-neutral-400 font-mono mt-0.5">
                       {selectedCustomer.phone_number || (selectedCustomer as any).phone}
@@ -257,7 +254,7 @@ export default function CreateReservationModal({
                 </div>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setIsSelectCustomerOpen(true)}
                 >
@@ -308,7 +305,7 @@ export default function CreateReservationModal({
                   <div className="text-sm font-semibold text-amber-400">
                     {parseFloat(preselectedDevice.default_selling_price).toFixed(2)} DH
                   </div>
-                  <Badge variant="info" size="sm">En Stock</Badge>
+                  <Badge variant="default">En Stock</Badge>
                 </div>
               </div>
             ) : (
@@ -554,7 +551,7 @@ export default function CreateReservationModal({
       <CreateCustomerModal
         isOpen={isCreateCustomerOpen}
         onClose={() => setIsCreateCustomerOpen(false)}
-        onCustomerCreated={(c) => {
+        onSuccess={(c: Customer) => {
           setSelectedCustomer(c);
           setIsCreateCustomerOpen(false);
           setError(null);

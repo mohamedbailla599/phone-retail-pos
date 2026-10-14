@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import PriceDisplay from '../components/ui/PriceDisplay';
 import {
   reservationsApi,
   type Reservation,
@@ -15,10 +14,8 @@ import AddDepositModal from '../components/reservations/AddDepositModal';
 import ReservationReceiptModal from '../components/reservations/ReservationReceiptModal';
 import {
   Bookmark,
-  Calendar,
   Clock,
   CheckCircle2,
-  XCircle,
   Plus,
   Search,
   RefreshCw,
@@ -26,9 +23,6 @@ import {
   RotateCcw,
   PlusCircle,
   Smartphone,
-  User,
-  ArrowRight,
-  AlertCircle,
   Banknote,
 } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
@@ -83,7 +77,7 @@ export default function ReservationsPage() {
     setIsReceiptModalOpen(true);
   };
 
-  const handleActionSuccess = (updated: Reservation) => {
+  const handleActionSuccess = () => {
     loadData();
   };
 
@@ -158,9 +152,9 @@ export default function ReservationsPage() {
       case 'CANCELLED':
         return <Badge variant="danger">Annulée</Badge>;
       case 'EXPIRED':
-        return <Badge variant="neutral">Expirée</Badge>;
+        return <Badge variant="default">Expirée</Badge>;
       default:
-        return <Badge variant="neutral">{status}</Badge>;
+        return <Badge variant="default">{status}</Badge>;
     }
   };
 
@@ -300,7 +294,7 @@ export default function ReservationsPage() {
                   : 'Aucun enregistrement ne correspond aux filtres appliqués.'}
               </p>
               {statusFilter === 'ACTIVE' && (
-                <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(true)}>
+                <Button variant="secondary" size="sm" onClick={() => setIsCreateModalOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Créer une réservation
                 </Button>

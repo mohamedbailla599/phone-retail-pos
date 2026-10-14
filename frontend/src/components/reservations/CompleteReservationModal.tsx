@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import Badge from '../ui/Badge';
 import { reservationsApi, type Reservation } from '../../api/reservations';
-import { CheckCircle, AlertCircle, Loader2, Smartphone, User, DollarSign } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Smartphone, User } from 'lucide-react';
 
 interface CompleteReservationModalProps {
   isOpen: boolean;
