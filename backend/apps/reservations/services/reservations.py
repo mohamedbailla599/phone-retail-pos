@@ -12,6 +12,7 @@ from apps.inventory.services.inventory import (
     release_reserved_device,
     reserve_device,
 )
+from apps.payments.models import Payment
 from apps.reservations.models import Reservation
 from apps.sales.models import Transaction, TransactionItem
 from apps.store_settings.models import StoreSettings
@@ -350,14 +351,18 @@ def add_reservation_payment(
         .select_for_update()
         .get(pk=reservation.transaction_id)
     )
-    from apps.payments.services.payments import create_payment
-    return create_payment(
+    from apps.payments.services.payments import create_payment, confirm_bank_transfer
+    p = create_payment(
         sale_id=transaction_obj.id,
         amount=amount,
         method=method,
         actor=actor,
         reference=reference,
     )
+    if p.status == Payment.Status.PENDING and p.method == Payment.Method.BANK_TRANSFER:
+        p = confirm_bank_transfer(payment_id=p.id, actor=actor)
+    return p
+
 
 
 @transaction.atomic
@@ -522,14 +527,17 @@ def complete_reservation(
             raise ReservationError("Payment amount must be a valid number.")
 
         if pay_dec > Decimal("0.00"):
-            from apps.payments.services.payments import create_payment
-            create_payment(
+            from apps.payments.services.payments import create_payment, confirm_bank_transfer
+            p = create_payment(
                 sale_id=transaction_obj.id,
                 amount=pay_dec,
                 method=payment_method,
                 actor=actor,
                 reference=payment_reference,
             )
+            if p.status == Payment.Status.PENDING and p.method == Payment.Method.BANK_TRANSFER:
+                confirm_bank_transfer(payment_id=p.id, actor=actor)
+
 
     confirmed_paid = _get_confirmed_paid_amount(transaction_obj)
     if confirmed_paid < transaction_obj.total_amount:

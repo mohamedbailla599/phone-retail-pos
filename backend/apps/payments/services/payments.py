@@ -196,7 +196,16 @@ def create_payment(
 
         status = Payment.Status.CONFIRMED
         confirmed_by = actor
-        confirmed_at = timezone.now()
+    elif method == Payment.Method.BANK_TRANSFER:
+        from apps.users.models import User
+        if actor and getattr(actor, "role", None) in [User.Role.OWNER, User.Role.CASHIER]:
+            status = Payment.Status.CONFIRMED
+            confirmed_by = actor
+            confirmed_at = timezone.now()
+        else:
+            status = Payment.Status.PENDING
+            confirmed_by = None
+            confirmed_at = None
 
     else:
         status = Payment.Status.PENDING

@@ -443,7 +443,7 @@ export default function CreateReservationModal({
             {/* Solde restant summary banner */}
             <div className="col-span-1 md:col-span-2 pt-2 border-t border-neutral-800 flex items-center justify-between text-sm">
               <span className="text-neutral-400">Solde restant à payer au retrait :</span>
-              <span className="font-bold text-amber-400 text-base">
+              <span key={remainingBalance} translate="no" className="font-bold text-amber-400 text-base notranslate">
                 {remainingBalance.toFixed(2)} DH
               </span>
             </div>
@@ -455,7 +455,7 @@ export default function CreateReservationModal({
               <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">
                 3. Durée de Validité de la Réservation
               </label>
-              <span className="text-xs text-amber-400/90 font-mono">
+              <span key={expiryPreviewDate} translate="no" className="text-xs text-amber-400/90 font-mono notranslate">
                 Expire le : {expiryPreviewDate}
               </span>
             </div>

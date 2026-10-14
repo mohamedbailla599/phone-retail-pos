@@ -94,19 +94,19 @@ export default function CompleteReservationModal({
           <div className="grid grid-cols-3 gap-2 pt-1 text-center">
             <div className="p-2 bg-neutral-950/60 rounded-lg border border-neutral-800/80">
               <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Prix Total</div>
-              <div className="font-bold text-sm text-neutral-200 mt-0.5">
+              <div key={reservedPrice} translate="no" className="font-bold text-sm text-neutral-200 mt-0.5 notranslate">
                 {reservedPrice.toFixed(2)} DH
               </div>
             </div>
             <div className="p-2 bg-neutral-950/60 rounded-lg border border-neutral-800/80">
               <div className="text-[10px] text-emerald-500 uppercase tracking-wider">Acompte Reçu</div>
-              <div className="font-bold text-sm text-emerald-400 mt-0.5">
+              <div key={paidAmount} translate="no" className="font-bold text-sm text-emerald-400 mt-0.5 notranslate">
                 {paidAmount.toFixed(2)} DH
               </div>
             </div>
             <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
               <div className="text-[10px] text-amber-400 uppercase tracking-wider">Solde Restant</div>
-              <div className="font-bold text-sm text-amber-300 mt-0.5">
+              <div key={remainingBalance} translate="no" className="font-bold text-sm text-amber-300 mt-0.5 notranslate">
                 {remainingBalance.toFixed(2)} DH
               </div>
             </div>
@@ -180,7 +180,7 @@ export default function CompleteReservationModal({
             loading={submitting}
             icon={<CheckCircle className="w-4 h-4" />}
           >
-            {submitting ? 'Validation en cours...' : 'Confirmer la Vente & Remise'}
+            {submitting ? 'Validation en cours...' : 'Finaliser la Vente & Livrer'}
           </Button>
         </div>
       </form>
