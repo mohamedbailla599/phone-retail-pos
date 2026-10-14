@@ -33,6 +33,9 @@ export default function LoginPage() {
     try {
       const data = await authApi.login({ username, password });
       setAuth(data.user);
+      if (data.operator) {
+        useAuthStore.getState().setOperator(data.operator);
+      }
       // Let the useEffect handle the redirect
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed. Please check credentials.');
