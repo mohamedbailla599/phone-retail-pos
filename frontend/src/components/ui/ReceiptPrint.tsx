@@ -80,6 +80,12 @@ export default function ReceiptPrint({ transaction, operator }: ReceiptPrintProp
             <span>{parseFloat(cp.amount).toFixed(2)} DH</span>
           </div>
         ))}
+        {transaction.customer && parseFloat(transaction.customer.current_debt || '0') > 0 && (
+          <div className="flex justify-between text-[11px] font-bold text-black border-t border-dotted border-gray-400 pt-1 mt-1">
+            <span>Solde dette client :</span>
+            <span>{parseFloat(transaction.customer.current_debt).toFixed(2)} DH</span>
+          </div>
+        )}
       </div>
 
       <div className="text-center text-[10px]">

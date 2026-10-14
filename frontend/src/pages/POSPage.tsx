@@ -289,9 +289,34 @@ export default function POSPage() {
     }
   };
 
-  const handlePaymentConfirm = async (method: 'CASH' | 'BANK_TRANSFER' | 'DEBT', amount: string) => {
+  const handlePaymentConfirm = async (
+    method: 'CASH' | 'BANK_TRANSFER' | 'DEBT' | 'MIXED',
+    amount: string,
+    splitDetails?: { cash: string; debt: string }
+  ) => {
     if (!transaction?.id) return;
     try {
+      if (method === 'MIXED') {
+        if (splitDetails) {
+          const cashNum = parseFloat(splitDetails.cash || '0');
+          const debtNum = parseFloat(splitDetails.debt || '0');
+
+          if (cashNum > 0) {
+            await posApi.addPayment(transaction.id, cashNum.toFixed(2), 'CASH');
+          }
+          if (debtNum > 0) {
+            await posApi.addPayment(transaction.id, debtNum.toFixed(2), 'DEBT');
+          }
+
+          const finalTx = await posApi.completeSale(transaction.id);
+          setTransaction(finalTx);
+          setIsPaymentModalOpen(false);
+          setSuccessMsg(`Vente finalisée avec succès (Espèces: ${cashNum.toFixed(2)} DH, Dette: ${debtNum.toFixed(2)} DH) ! Reçu : ${finalTx.receipt_id || finalTx.id}`);
+          loadCatalog();
+        }
+        return;
+      }
+
       const updatedTx = await posApi.addPayment(transaction.id, amount, method);
       setTransaction(updatedTx);
       setIsPaymentModalOpen(false);
@@ -302,7 +327,7 @@ export default function POSPage() {
         const total = parseFloat(updatedTx.total_amount || '0');
         const paid = parseFloat(updatedTx.confirmed_paid || '0');
 
-        if (paid >= total) {
+        if (paid >= total - 0.009) {
           const finalTx = await posApi.completeSale(transaction.id);
           setTransaction(finalTx);
           setSuccessMsg(`Vente finalisée avec succès ! Reçu : ${finalTx.receipt_id || finalTx.id}`);
@@ -473,34 +498,7 @@ export default function POSPage() {
           </div>
 
           {/* Product Grid */}
-          <div className="flex-1 overflow-y-auto p-6 relative" style={{ opacity: isDraft ? 1 : 0.5, pointerEvents: isDraft ? 'auto' : 'none' }}>
-            {isPendingPayment && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-surface/50 backdrop-blur-sm pointer-events-auto">
-                <div className="bg-surface border border-border p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center">
-                   <div className="w-12 h-12 rounded-xl bg-gold/10 border border-gold-border flex items-center justify-center text-gold mb-3">
-                     <Banknote className="w-6 h-6 text-gold" />
-                   </div>
-                   <p className="text-text font-bold text-base">Paiement en attente</p>
-                   <p className="text-text-muted text-xs mt-1 mb-4 leading-relaxed">
-                     Le panier est verrouillé. Vous pouvez reprendre le paiement ou déverrouiller pour modifier la vente.
-                   </p>
-                   <div className="flex items-center gap-2 w-full">
-                     <button
-                       onClick={handleUnlockCart}
-                       className="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-surface-elevated hover:bg-surface border border-border text-text-secondary hover:text-text transition-colors"
-                     >
-                       Modifier panier
-                     </button>
-                     <button
-                       onClick={handleCheckoutClick}
-                       className="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-gold hover:bg-gold-bright text-black font-bold transition-colors"
-                     >
-                       Payer
-                     </button>
-                   </div>
-                </div>
-              </div>
-            )}
+          <div className="flex-1 overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Products</h2>
               <span className="text-xs text-text-muted">{filteredCatalog.length} items</span>
@@ -846,15 +844,26 @@ export default function POSPage() {
                 ) : null}
               </div>
             ) : (
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full no-print"
-                icon={<Plus className="w-5 h-5" />}
-                onClick={startNewSale}
-              >
-                Nouvelle Vente
-              </Button>
+              <div className="space-y-2 no-print">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full !bg-emerald-600 hover:!bg-emerald-500 !text-white font-bold shadow-lg"
+                  icon={<Printer className="w-5 h-5" />}
+                  onClick={handlePrint}
+                >
+                  Imprimer le Reçu
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  className="w-full font-semibold"
+                  icon={<Plus className="w-4 h-4" />}
+                  onClick={startNewSale}
+                >
+                  Nouvelle Vente
+                </Button>
+              </div>
             )}
           </div>
         </aside>
