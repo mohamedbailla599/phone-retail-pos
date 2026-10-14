@@ -3,6 +3,8 @@ import Sidebar from '../components/layout/Sidebar';
 import { auditApi, type AuditLog, type AuditLogStats } from '../api/audit';
 import AuditDetailModal from '../components/audit/AuditDetailModal';
 import { useDebounce } from '../hooks/useDebounce';
+import { useAuthStore } from '../store/authStore';
+import { exportAuditLogsToPdf } from '../utils/auditPdfExport';
 import {
   ShieldCheck,
   Search,
@@ -17,13 +19,16 @@ import {
   ChevronRight,
   Package,
   CreditCard,
+  Download,
 } from 'lucide-react';
 
 export default function AuditLogsPage() {
+  const { operator, user } = useAuthStore();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [stats, setStats] = useState<AuditLogStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filters State
@@ -41,6 +46,49 @@ export default function AuditLogsPage() {
 
   // Selected Log for Modal
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      // Fetch full matching dataset (up to 5000 items)
+      const exportData = await auditApi.getLogs({
+        page: 1,
+        page_size: 5000,
+        search: debouncedSearch.trim() || undefined,
+        action: selectedAction !== 'ALL' ? selectedAction : undefined,
+        actor_id: selectedActor ? Number(selectedActor) : undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+      });
+
+      const categoryLabels: Record<string, string> = {
+        ALL: 'Toutes les actions',
+        SALES: 'Ventes',
+        PAYMENTS: 'Paiements & Dettes',
+        STOCK: 'Stocks & Matériel',
+        EXCHANGES: 'Échanges',
+        CUSTOMERS: 'Clients',
+        USERS: 'Comptes & Utilisateurs',
+      };
+
+      const activeCategoryLabel = categoryLabels[selectedAction] || selectedAction;
+      const selectedOp = stats?.operators.find((o) => String(o.id) === String(selectedActor));
+      const activeOpName = selectedOp ? `${selectedOp.name} (@${selectedOp.username})` : undefined;
+
+      exportAuditLogsToPdf({
+        logs: exportData.results,
+        categoryLabel: activeCategoryLabel,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        operatorName: activeOpName,
+        generatedBy: operator?.display_name || user?.display_name || 'Bighrissen Admin',
+      });
+    } catch (err: any) {
+      setError('Erreur lors de la génération du fichier PDF.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -154,6 +202,20 @@ export default function AuditLogsPage() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-gold' : ''}`} />
               <span>Actualiser</span>
+            </button>
+
+            <button
+              onClick={handleExportPdf}
+              disabled={isExporting || isLoading}
+              className="h-10 px-4 rounded-xl bg-gold hover:bg-gold-hover text-black font-semibold flex items-center gap-2 text-xs shadow-lg shadow-gold/20 hover:shadow-gold/30 transition-all cursor-pointer disabled:opacity-50"
+              title="Exporter en PDF selon les filtres actifs (catégorie et dates sélectionnées)"
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 animate-spin text-black" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              <span>{isExporting ? 'Exportation...' : 'Exporter en PDF'}</span>
             </button>
           </div>
         </header>

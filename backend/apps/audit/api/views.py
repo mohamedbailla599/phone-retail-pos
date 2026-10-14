@@ -14,7 +14,7 @@ from .serializers import AuditLogSerializer
 class AuditLogPagination(PageNumberPagination):
     page_size = 30
     page_size_query_param = "page_size"
-    max_page_size = 100
+    max_page_size = 5000
 
     def get_paginated_response(self, data):
         return Response({
