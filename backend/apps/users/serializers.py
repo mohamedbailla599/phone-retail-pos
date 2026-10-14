@@ -52,6 +52,7 @@ class CreateOperatorSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    role = serializers.ChoiceField(choices=User.Role.choices, default=User.Role.CASHIER, required=False)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
 
     def validate_username(self, value):

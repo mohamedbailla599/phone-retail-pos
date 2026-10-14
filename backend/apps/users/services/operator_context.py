@@ -29,9 +29,9 @@ def create_operator_context(request, operator: User) -> str:
             "Selected user is not an active POS operator."
         )
 
-    if operator.role != User.Role.OWNER:
+    if operator.role not in [User.Role.OWNER, User.Role.CASHIER]:
         raise OperatorContextError(
-            "Selected POS operator must be an owner."
+            "Selected POS operator is not valid."
         )
 
     issued_at = timezone.now().timestamp()
@@ -126,7 +126,6 @@ def get_operator_from_context(
             pk=payload["operator_id"],
             is_active=True,
             is_pos_operator=True,
-            role=User.Role.OWNER,
         )
     except (
         User.DoesNotExist,

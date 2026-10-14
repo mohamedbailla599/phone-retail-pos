@@ -23,10 +23,12 @@ import {
   Lock,
   Loader2,
   Eye,
+  Crown,
+  KeyRound,
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user, operator: currentOperator } = useAuthStore();
+  const { operator: currentOperator } = useAuthStore();
   const { fetchSettings, updateSettings } = useSettingsStore();
 
   const [activeTab, setActiveTab] = useState<'store' | 'operators' | 'warranties'>('store');
@@ -57,10 +59,18 @@ export default function SettingsPage() {
     username: '',
     first_name: '',
     last_name: '',
+    role: 'CASHIER',
     password: '',
   });
   const [operatorModalError, setOperatorModalError] = useState<string | null>(null);
   const [updatingOperatorId, setUpdatingOperatorId] = useState<number | null>(null);
+
+  // Password / PIN Modal State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [selectedOperatorForPassword, setSelectedOperatorForPassword] = useState<Operator | null>(null);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [passwordModalError, setPasswordModalError] = useState<string | null>(null);
 
   // Load Initial Data
   useEffect(() => {
@@ -163,13 +173,14 @@ export default function SettingsPage() {
         username: operatorForm.username.trim().toLowerCase(),
         first_name: operatorForm.first_name.trim(),
         last_name: operatorForm.last_name.trim(),
+        role: operatorForm.role,
         password: operatorForm.password.trim() || undefined,
       });
 
       setOperators((prev) => [newOp, ...prev]);
       setIsCreateModalOpen(false);
-      setOperatorForm({ username: '', first_name: '', last_name: '', password: '' });
-      setSuccessMessage(`Opérateur ${newOp.display_name} créé avec succès !`);
+      setOperatorForm({ username: '', first_name: '', last_name: '', role: 'CASHIER', password: '' });
+      setSuccessMessage(`Utilisateur ${newOp.display_name} créé avec succès !`);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
       setOperatorModalError(
@@ -179,6 +190,38 @@ export default function SettingsPage() {
       );
     } finally {
       setIsCreatingOperator(false);
+    }
+  };
+
+  const handleOpenPasswordModal = (op: Operator) => {
+    setSelectedOperatorForPassword(op);
+    setPasswordInput('');
+    setPasswordModalError(null);
+    setIsPasswordModalOpen(true);
+  };
+
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOperatorForPassword) return;
+    if (!passwordInput.trim()) {
+      setPasswordModalError('Veuillez saisir un mot de passe ou code PIN.');
+      return;
+    }
+
+    setIsSavingPassword(true);
+    setPasswordModalError(null);
+    try {
+      await settingsApi.updateOperator(selectedOperatorForPassword.id, {
+        password: passwordInput.trim(),
+      });
+      setIsPasswordModalOpen(false);
+      setPasswordInput('');
+      setSuccessMessage(`Mot de passe/PIN de ${selectedOperatorForPassword.display_name} mis à jour avec succès !`);
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: any) {
+      setPasswordModalError(err.response?.data?.detail || 'Erreur lors de la mise à jour du mot de passe.');
+    } finally {
+      setIsSavingPassword(false);
     }
   };
 
@@ -290,18 +333,15 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-surface border border-border flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                <Users className="w-6 h-6" />
+            <div className="p-4 rounded-2xl bg-surface border border-gold-border/60 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gold/15 border border-gold-border flex items-center justify-center text-gold">
+                <Crown className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Équipe Caisse</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <p className="text-base font-bold text-white">{activeOperatorsCount}</p>
-                  <span className="text-xs text-text-secondary">actifs sur {operators.length} inscrits</span>
-                </div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gold">Propriétaires & Direction</p>
+                <p className="text-base font-bold text-white mt-0.5">Hassan & Mohamed</p>
                 <p className="text-xs text-text-secondary mt-0.5">
-                  Opérateur courant : <span className="text-white font-medium">{currentOperator?.display_name || user?.display_name || 'Admin'}</span>
+                  Co-propriétaires & Administrateurs ({activeOperatorsCount} opérateurs actifs)
                 </p>
               </div>
             </div>
@@ -563,64 +603,121 @@ export default function SettingsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    {filteredOperators.map((op) => (
-                      <tr key={op.id} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gold/10 border border-gold-border flex items-center justify-center text-gold font-bold text-xs uppercase">
-                              {op.first_name ? op.first_name[0] : op.username[0]}
+                    {filteredOperators.map((op) => {
+                      const isOwner = op.username === 'hassan' || op.username === 'mohamed' || op.role === 'OWNER';
+                      const isPOSAdmin = op.username === 'admin';
+                      return (
+                        <tr key={op.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs uppercase ${
+                                  isOwner
+                                    ? 'bg-gold/20 border border-gold text-gold shadow-sm'
+                                    : isPOSAdmin
+                                    ? 'bg-blue-500/15 border border-blue-500/30 text-blue-400'
+                                    : 'bg-surface-elevated border border-border text-text-secondary'
+                                }`}
+                              >
+                                {isOwner ? (
+                                  <Crown className="w-4 h-4 text-gold" />
+                                ) : (
+                                  op.first_name ? op.first_name[0] : op.username[0]
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-white text-sm">{op.display_name}</p>
+                                  {isOwner && (
+                                    <span className="px-2 py-0.2 rounded-full text-[9px] font-bold uppercase tracking-wider bg-gold/15 text-gold border border-gold-border/60">
+                                      Propriétaire & Admin
+                                    </span>
+                                  )}
+                                </div>
+                                <p className={`text-[11px] ${isOwner ? 'text-gold/90 font-medium' : 'text-text-muted'}`}>
+                                  {isOwner
+                                    ? 'Co-propriétaire & Administrateur du Magasin'
+                                    : isPOSAdmin
+                                    ? 'Poste Terminal Caisse Principal'
+                                    : 'Caissier / Opérateur Vente'}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-semibold text-white text-sm">{op.display_name}</p>
-                              <p className="text-[11px] text-text-muted">
-                                {op.is_pos_account ? 'Compte de caisse principal' : 'Opérateur caisse'}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <span className="font-mono text-text-secondary bg-surface-elevated px-2 py-1 rounded-md border border-border">
-                            {op.username}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-gold/10 text-gold border border-gold-border/40">
-                              {op.role || 'OWNER'}
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="font-mono text-text-secondary bg-surface-elevated px-2 py-1 rounded-md border border-border">
+                              {op.username}
                             </span>
-                            {op.is_pos_account && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                                Terminal POS
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-2">
+                              {isOwner ? (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gold/15 text-gold border border-gold-border flex items-center gap-1.5 shadow-sm">
+                                  <Crown className="w-3.5 h-3.5 text-gold" /> PROPRIÉTAIRE & ADMIN
+                                </span>
+                              ) : isPOSAdmin ? (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/30 flex items-center gap-1.5">
+                                  <Store className="w-3 h-3 text-blue-400" /> Caisse Centrale (POS)
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-neutral-500/15 text-neutral-300 border border-neutral-500/30">
+                                  Caissier
+                                </span>
+                              )}
+                              {op.is_pos_account && !isPOSAdmin && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                  Terminal POS
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            {op.is_active ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                Actif
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-neutral-500/15 text-neutral-400 border border-neutral-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
+                                Désactivé
                               </span>
                             )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          {op.is_active ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                              Actif
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-neutral-500/15 text-neutral-400 border border-neutral-500/30">
-                              <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
-                              Désactivé
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <Button
-                            variant={op.is_active ? 'danger' : 'secondary'}
-                            size="sm"
-                            loading={updatingOperatorId === op.id}
-                            onClick={() => handleToggleOperatorStatus(op)}
-                            icon={op.is_active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
-                          >
-                            {op.is_active ? 'Désactiver' : 'Activer'}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {isOwner || isPOSAdmin ? (
+                                <span
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-gold/90 bg-gold/5 border border-gold-border/40"
+                                  title="Compte Administrateur / Propriétaire protégé contre la désactivation"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5 text-gold" /> Protégé
+                                </span>
+                              ) : (
+                                <Button
+                                  variant={op.is_active ? 'danger' : 'secondary'}
+                                  size="sm"
+                                  loading={updatingOperatorId === op.id}
+                                  onClick={() => handleToggleOperatorStatus(op)}
+                                  icon={op.is_active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                                >
+                                  {op.is_active ? 'Désactiver' : 'Activer'}
+                                </Button>
+                              )}
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleOpenPasswordModal(op)}
+                                icon={<KeyRound className="w-3.5 h-3.5" />}
+                                title="Modifier le code PIN ou mot de passe"
+                              >
+                                PIN / Mdp
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
 
                     {filteredOperators.length === 0 && (
                       <tr>
@@ -778,6 +875,20 @@ export default function SettingsPage() {
           </div>
 
           <div>
+            <label className="text-xs font-medium text-text-secondary uppercase tracking-wider block mb-1.5">
+              Rôle & Droits d'Accès *
+            </label>
+            <select
+              value={operatorForm.role}
+              onChange={(e) => setOperatorForm({ ...operatorForm, role: e.target.value })}
+              className="w-full h-10 px-3 bg-surface border border-border rounded-xl text-text text-sm focus:outline-none focus:border-gold-border"
+            >
+              <option value="CASHIER">Caissier / Opérateur (Droits caisse standard)</option>
+              <option value="OWNER">Co-propriétaire & Administrateur (Tous les droits)</option>
+            </select>
+          </div>
+
+          <div>
             <Input
               label="Mot de passe ou Code PIN (Optionnel)"
               type="password"
@@ -807,6 +918,77 @@ export default function SettingsPage() {
               icon={<Plus className="w-4 h-4" />}
             >
               Créer l'Opérateur
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Modifier Mot de Passe / Code PIN */}
+      <Modal
+        open={isPasswordModalOpen}
+        onClose={() => {
+          setIsPasswordModalOpen(false);
+          setSelectedOperatorForPassword(null);
+          setPasswordInput('');
+          setPasswordModalError(null);
+        }}
+        title={`Modifier le Mot de Passe / PIN — ${selectedOperatorForPassword?.display_name || ''}`}
+      >
+        <form onSubmit={handleSavePassword} className="space-y-4">
+          {passwordModalError && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{passwordModalError}</span>
+            </div>
+          )}
+
+          <div className="p-3.5 rounded-xl bg-surface border border-border flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-gold/15 border border-gold-border flex items-center justify-center text-gold font-bold text-xs uppercase">
+              {selectedOperatorForPassword?.first_name ? selectedOperatorForPassword.first_name[0] : 'U'}
+            </div>
+            <div>
+              <p className="font-semibold text-white text-sm">{selectedOperatorForPassword?.display_name}</p>
+              <p className="text-[11px] text-text-muted">
+                Identifiant : <span className="font-mono text-gold">{selectedOperatorForPassword?.username}</span>
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <Input
+              label="Nouveau Mot de Passe ou Code PIN *"
+              type="password"
+              icon={<Lock className="w-4 h-4" />}
+              placeholder="Saisissez le nouveau code..."
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              required
+            />
+            <p className="text-[11px] text-text-muted mt-1">
+              Ce code permettra de se connecter sur l'écran d'accueil du POS.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-border mt-5">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsPasswordModalOpen(false);
+                setSelectedOperatorForPassword(null);
+                setPasswordInput('');
+              }}
+              disabled={isSavingPassword}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={isSavingPassword}
+              icon={<Save className="w-4 h-4" />}
+            >
+              Enregistrer le Code
             </Button>
           </div>
         </form>

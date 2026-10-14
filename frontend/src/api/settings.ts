@@ -34,6 +34,7 @@ export interface CreateOperatorPayload {
   username: string;
   first_name: string;
   last_name?: string;
+  role?: string;
   password?: string;
 }
 
@@ -41,6 +42,7 @@ export interface UpdateOperatorPayload {
   first_name?: string;
   last_name?: string;
   is_active?: boolean;
+  password?: string;
 }
 
 export const settingsApi = {

@@ -4,7 +4,8 @@ from django.db import models
 
 class User(AbstractUser):
     class Role(models.TextChoices):
-        OWNER = "OWNER", "Owner"
+        OWNER = "OWNER", "Propriétaire & Admin"
+        CASHIER = "CASHIER", "Caissier"
 
     is_pos_account = models.BooleanField(default=False)
     is_pos_operator = models.BooleanField(default=False)

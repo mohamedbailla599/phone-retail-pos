@@ -83,7 +83,6 @@ class POSOperatorListView(APIView):
         operators = User.objects.filter(
             is_active=True,
             is_pos_operator=True,
-            role=User.Role.OWNER,
         ).order_by("first_name", "last_name", "id")
         return Response(POSUserSerializer(operators, many=True).data)
 
@@ -98,7 +97,6 @@ class POSOperatorSelectView(APIView):
                 id=serializer.validated_data["operator_id"],
                 is_active=True,
                 is_pos_operator=True,
-                role=User.Role.OWNER,
             )
         except User.DoesNotExist:
             return Response(
@@ -148,12 +146,14 @@ class POSOperatorCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        role = data.get("role", User.Role.CASHIER)
         user = User.objects.create(
             username=data["username"],
             first_name=data["first_name"],
             last_name=data.get("last_name", ""),
             is_pos_operator=True,
-            role=User.Role.OWNER,
+            role=role,
+            is_pos_account=False,
             is_active=True,
         )
         password = data.get("password")
@@ -180,8 +180,9 @@ class POSOperatorCreateView(APIView):
                         "username": user.username,
                         "first_name": user.first_name,
                         "last_name": user.last_name,
+                        "role": user.role,
                     },
-                    reason=f"Nouvel opérateur caisse créé: {user.get_full_name() or user.username}",
+                    reason=f"Nouvel utilisateur caisse créé: {user.get_full_name() or user.username} ({user.role})",
                 )
             except Exception:
                 pass
@@ -201,12 +202,18 @@ class POSOperatorUpdateView(APIView):
         is_active = request.data.get("is_active")
         first_name = request.data.get("first_name")
         last_name = request.data.get("last_name")
+        password = request.data.get("password")
 
         old_values = {}
         new_values = {}
 
         if is_active is not None and is_active != user.is_active:
             if not is_active:
+                if user.username in ["hassan", "mohamed"] or user.role == User.Role.OWNER:
+                    return Response(
+                        {"detail": "Impossible de désactiver un compte Propriétaire & Administrateur."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 active_count = User.objects.filter(is_pos_operator=True, is_active=True).count()
                 if active_count <= 1:
                     return Response(
@@ -226,6 +233,11 @@ class POSOperatorUpdateView(APIView):
             old_values["last_name"] = user.last_name
             user.last_name = last_name.strip()
             new_values["last_name"] = user.last_name
+
+        if password and password.strip():
+            user.set_password(password.strip())
+            old_values["password"] = "modifié"
+            new_values["password"] = "modifié"
 
         user.save()
 
