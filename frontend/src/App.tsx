@@ -14,6 +14,7 @@ import CustomersPage from './pages/CustomersPage';
 import ReportsPage from './pages/ReportsPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import ReturnsRefundsPage from './pages/ReturnsRefundsPage';
+import ReservationsPage from './pages/ReservationsPage';
 import SettingsPage from './pages/SettingsPage';
 import { useSettingsStore } from './store/settingsStore';
 import { Loader2 } from 'lucide-react';
@@ -126,6 +127,12 @@ function App() {
           <Route path="/returns" element={
             <ProtectedRoute>
               <ReturnsRefundsPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/reservations" element={
+            <ProtectedRoute>
+              <ReservationsPage />
             </ProtectedRoute>
           } />
 

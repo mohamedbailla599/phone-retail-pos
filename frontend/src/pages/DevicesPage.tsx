@@ -4,6 +4,7 @@ import type { DeviceItem } from '../api/inventory';
 import { Search, Plus, Loader2, Smartphone } from 'lucide-react';
 import ReceiveDeviceModal from '../components/inventory/ReceiveDeviceModal';
 import ChangeDeviceStatusModal from '../components/inventory/ChangeDeviceStatusModal';
+import CreateReservationModal from '../components/reservations/CreateReservationModal';
 import { Select } from '../components/ui/Select';
 import { useDebounce } from '../hooks/useDebounce';
 import Sidebar from '../components/layout/Sidebar';
@@ -20,6 +21,8 @@ export default function DevicesPage() {
   const [error, setError] = useState('');
   const [selectedDevice, setSelectedDevice] = useState<DeviceItem | null>(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [deviceToReserve, setDeviceToReserve] = useState<DeviceItem | null>(null);
+  const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
 
   const loadDevices = useCallback(async () => {
     setLoading(true);
@@ -183,7 +186,19 @@ export default function DevicesPage() {
                         {device.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {device.status === 'IN_STOCK' && (
+                        <button
+                          onClick={() => {
+                            setDeviceToReserve(device);
+                            setIsReserveModalOpen(true);
+                          }}
+                          className="mr-2 text-amber-400 hover:text-amber-300 text-xs font-semibold px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors"
+                          title="Réserver ce téléphone pour un client"
+                        >
+                          Réserver
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setSelectedDevice(device);
@@ -234,6 +249,18 @@ export default function DevicesPage() {
           loadDevices();
         }}
         device={selectedDevice}
+      />
+
+      <CreateReservationModal
+        isOpen={isReserveModalOpen}
+        onClose={() => {
+          setIsReserveModalOpen(false);
+          setDeviceToReserve(null);
+        }}
+        preselectedDevice={deviceToReserve}
+        onSuccess={() => {
+          loadDevices();
+        }}
       />
     </div>
   );

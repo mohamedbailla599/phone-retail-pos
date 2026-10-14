@@ -34,8 +34,25 @@ from core.exceptions import (
 def _get_store_settings():
     settings = StoreSettings.objects.order_by("id").first()
     if settings is None:
+        from apps.users.models import User
+        admin_user = User.objects.filter(is_active=True).first()
+        if admin_user:
+            settings, _ = StoreSettings.objects.get_or_create(
+                id=1,
+                defaults={
+                    "store_name": "Bighrissen Phone",
+                    "currency": "MAD",
+                    "default_device_warranty_months": 3,
+                    "default_reservation_months": 1,
+                    "default_accessory_warranty_months": 1,
+                    "receipt_prefix": "BP",
+                    "updated_by": admin_user,
+                },
+            )
+            return settings
         raise ReservationError("Store settings have not been configured.")
     return settings
+
 
 
 def _add_calendar_months(value, months):
@@ -76,6 +93,7 @@ def create_reservation(
     customer,
     device_id,
     reserved_price=None,
+    expires_at=None,
     notes=None,
 ):
     """
@@ -146,10 +164,14 @@ def create_reservation(
 
     settings = _get_store_settings()
     now = timezone.now()
-    expires_at = _add_calendar_months(
-        now,
-        settings.default_reservation_months,
-    )
+    if expires_at is None:
+        expires_at = _add_calendar_months(
+            now,
+            settings.default_reservation_months,
+        )
+    else:
+        if expires_at <= now:
+            raise ReservationError("Expiration date must be in the future.")
 
     transaction_obj = Transaction.objects.create(
         receipt_id="PENDING",
@@ -259,7 +281,94 @@ def activate_reservation(*, reservation_id, actor):
 
 
 @transaction.atomic
-def cancel_reservation(*, reservation_id, actor, reason=None):
+def create_and_activate_reservation(
+    *,
+    actor,
+    customer,
+    device_id,
+    reserved_price=None,
+    expires_at=None,
+    notes=None,
+    deposit_amount=None,
+    deposit_method="CASH",
+    deposit_reference=None,
+):
+    """
+    Create a reservation, activate it (reserving the device),
+    and optionally record an initial deposit payment.
+    """
+    reservation = create_reservation(
+        actor=actor,
+        customer=customer,
+        device_id=device_id,
+        reserved_price=reserved_price,
+        expires_at=expires_at,
+        notes=notes,
+    )
+    reservation = activate_reservation(
+        reservation_id=reservation.id,
+        actor=actor,
+    )
+
+    if deposit_amount is not None:
+        try:
+            dep_dec = Decimal(str(deposit_amount))
+        except (TypeError, ValueError, InvalidOperation):
+            raise ReservationError("Deposit amount must be a valid number.")
+
+        if dep_dec > Decimal("0.00"):
+            from apps.payments.services.payments import create_payment
+            create_payment(
+                sale_id=reservation.transaction_id,
+                amount=dep_dec,
+                method=deposit_method,
+                actor=actor,
+                reference=deposit_reference,
+            )
+
+    return reservation
+
+
+@transaction.atomic
+def add_reservation_payment(
+    *,
+    reservation_id,
+    amount,
+    method,
+    actor,
+    reference=None,
+):
+    """Add a payment (intermediate deposit or installment) to an active reservation."""
+    reservation = _get_reservation(reservation_id, lock=True)
+    if reservation.status != Reservation.Status.ACTIVE:
+        raise ReservationNotActive("Only ACTIVE reservations can receive payments.")
+    if reservation.expires_at <= timezone.now():
+        raise ReservationExpired("The reservation has expired.")
+
+    transaction_obj = (
+        Transaction.objects
+        .select_for_update()
+        .get(pk=reservation.transaction_id)
+    )
+    from apps.payments.services.payments import create_payment
+    return create_payment(
+        sale_id=transaction_obj.id,
+        amount=amount,
+        method=method,
+        actor=actor,
+        reference=reference,
+    )
+
+
+@transaction.atomic
+def cancel_reservation(
+    *,
+    reservation_id,
+    actor,
+    reason=None,
+    refund_deposit=False,
+    refund_method="CASH",
+):
     """Cancel an ACTIVE reservation and release its device."""
     reservation = _get_reservation(reservation_id, lock=True)
 
@@ -291,6 +400,33 @@ def cancel_reservation(*, reservation_id, actor, reason=None):
     transaction_obj = Transaction.objects.select_for_update().get(
         pk=reservation.transaction_id
     )
+
+    if refund_deposit:
+        paid_amount = _get_confirmed_paid_amount(transaction_obj)
+        if paid_amount > Decimal("0.00"):
+            from apps.refunds.models import Refund
+            from apps.refunds.services.refunds import (
+                _allocate_refund_to_payments,
+                _generate_refund_number,
+            )
+            refund_obj = Refund.objects.create(
+                refund_number=_generate_refund_number(),
+                customer=reservation.customer,
+                source_type=Refund.SourceType.RESERVATION,
+                source_id=reservation.id,
+                amount=paid_amount,
+                method=refund_method,
+                status=Refund.Status.COMPLETED,
+                reason=reason or "Reservation cancelled with deposit refund.",
+                requested_by=actor,
+                requested_at=now,
+                approved_by=actor,
+                approved_at=now,
+                completed_by=actor,
+                completed_at=now,
+            )
+            _allocate_refund_to_payments(refund_obj, transaction_obj)
+
     transaction_obj.status = Transaction.Status.CANCELLED
     transaction_obj.save(update_fields=["status", "updated_at"])
 
@@ -350,7 +486,14 @@ def expire_reservation(*, reservation_id, actor):
 
 
 @transaction.atomic
-def complete_reservation(*, reservation_id, actor):
+def complete_reservation(
+    *,
+    reservation_id,
+    actor,
+    payment_amount=None,
+    payment_method="CASH",
+    payment_reference=None,
+):
     """Complete an ACTIVE reservation after full confirmed payment."""
     reservation = _get_reservation(reservation_id, lock=True)
 
@@ -371,6 +514,22 @@ def complete_reservation(*, reservation_id, actor):
 
     if transaction_obj.status != Transaction.Status.PENDING_PAYMENT:
         raise ReservationError("Reservation transaction must be PENDING_PAYMENT.")
+
+    if payment_amount is not None:
+        try:
+            pay_dec = Decimal(str(payment_amount))
+        except (TypeError, ValueError, InvalidOperation):
+            raise ReservationError("Payment amount must be a valid number.")
+
+        if pay_dec > Decimal("0.00"):
+            from apps.payments.services.payments import create_payment
+            create_payment(
+                sale_id=transaction_obj.id,
+                amount=pay_dec,
+                method=payment_method,
+                actor=actor,
+                reference=payment_reference,
+            )
 
     confirmed_paid = _get_confirmed_paid_amount(transaction_obj)
     if confirmed_paid < transaction_obj.total_amount:

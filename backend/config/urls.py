@@ -43,4 +43,5 @@ urlpatterns = [
     path("api/warranty/", include("apps.warranty.api.urls")),
     path("api/audit-logs/", include("apps.audit.api.urls")),
     path("api/settings/", include("apps.store_settings.api.urls")),
+    path("api/reservations/", include("apps.reservations.api.urls")),
 ]

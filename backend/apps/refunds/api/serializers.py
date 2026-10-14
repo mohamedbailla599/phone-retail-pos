@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from apps.refunds.models import Refund, RefundPaymentAllocation
+from apps.returns.models import Return
 
 class RefundPaymentAllocationSerializer(serializers.ModelSerializer):
     class Meta:
