@@ -111,12 +111,12 @@ export default function ReportsPage() {
   const operatorLabel = operator?.display_name || user?.display_name || 'Bighrissen Admin';
 
   return (
-    <>
+    <div className="h-screen flex bg-bg overflow-hidden print:h-auto print:bg-white print:overflow-visible">
       {/* Thermal Print Version (Hidden from screen, visible only when printing) */}
       {data && <ZReportReceiptPrint data={data} operatorName={operatorLabel} />}
 
-      {/* Screen Interface */}
-      <div className="h-screen flex bg-bg overflow-hidden w-full print:hidden">
+      {/* Screen Interface (Hidden when printing) */}
+      <div className="print:hidden flex flex-1 h-full overflow-hidden w-full">
         <Sidebar />
 
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-bg">
@@ -704,6 +704,6 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

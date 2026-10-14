@@ -21,25 +21,16 @@ export default function ZReportReceiptPrint({ data, operatorName }: ZReportRecei
 
   return (
     <div
-      id="zreport-thermal-print"
+      id="thermal-receipt-root"
       className="hidden print:block w-full max-w-[80mm] mx-auto bg-white text-black p-4 text-[12px] font-mono leading-tight"
     >
-      <style type="text/css" media="print">
-        {`
-          @page { size: 80mm auto; margin: 0; }
-          body { padding: 4mm 2mm; margin: 0; background: white !important; color: black !important; }
-          #zreport-thermal-print { display: block !important; width: 80mm !important; }
-          .no-print { display: none !important; }
-        `}
-      </style>
-
       {/* Header */}
       <div className="text-center mb-3 border-b border-black pb-3 border-dashed">
-        <h1 className="text-base font-bold uppercase tracking-wider mb-1">BIGHRISSEN PHONE</h1>
-        <p className="text-[11px] font-bold">CLÔTURE DE CAISSE (TICKET Z)</p>
-        <p className="text-[10px]">Période: {data.period.start_date} {data.period.is_single_day ? '' : `au ${data.period.end_date}`}</p>
-        <p className="text-[10px]">Généré le: {formatDate(data.period.generated_at)}</p>
-        {operatorName && <p className="text-[10px]">Opérateur: {operatorName}</p>}
+        <h1 className="text-base font-bold uppercase tracking-wider mb-1 text-black">BIGHRISSEN PHONE</h1>
+        <p className="text-[11px] font-bold text-black">CLÔTURE DE CAISSE (TICKET Z)</p>
+        <p className="text-[10px] text-black">Période: {data.period.start_date} {data.period.is_single_day ? '' : `au ${data.period.end_date}`}</p>
+        <p className="text-[10px] text-black">Généré le: {formatDate(data.period.generated_at)}</p>
+        {operatorName && <p className="text-[10px] text-black">Opérateur: {operatorName}</p>}
       </div>
 
       {/* Section 1: Tiroir Caisse */}
@@ -102,11 +93,11 @@ export default function ZReportReceiptPrint({ data, operatorName }: ZReportRecei
           <span>C.A. NET DU JOUR :</span>
           <span>{data.kpi.total_revenue} DH</span>
         </div>
-        <div className="flex justify-between pt-1 text-gray-700">
+        <div className="flex justify-between pt-1 text-black">
           <span>Nouveau Crédit accordé :</span>
           <span>{data.kpi.new_debt_granted} DH</span>
         </div>
-        <div className="flex justify-between text-gray-700">
+        <div className="flex justify-between text-black">
           <span>Total Dettes recouvrées :</span>
           <span>{data.kpi.total_debt_recovered} DH</span>
         </div>
@@ -140,7 +131,7 @@ export default function ZReportReceiptPrint({ data, operatorName }: ZReportRecei
           <span>Téléphones ({data.breakdown.devices.units} pcs) :</span>
           <span>{data.breakdown.devices.revenue} DH</span>
         </div>
-        <div className="flex justify-between text-[11px] text-gray-600 pl-2">
+        <div className="flex justify-between text-[11px] text-black pl-2">
           <span>- Bénéfice Téléphones :</span>
           <span>{data.breakdown.devices.profit} DH</span>
         </div>
@@ -148,7 +139,7 @@ export default function ZReportReceiptPrint({ data, operatorName }: ZReportRecei
           <span>Accessoires ({data.breakdown.accessories.units} pcs) :</span>
           <span>{data.breakdown.accessories.revenue} DH</span>
         </div>
-        <div className="flex justify-between text-[11px] text-gray-600 pl-2">
+        <div className="flex justify-between text-[11px] text-black pl-2">
           <span>- Bénéfice Accessoires :</span>
           <span>{data.breakdown.accessories.profit} DH</span>
         </div>
@@ -160,7 +151,7 @@ export default function ZReportReceiptPrint({ data, operatorName }: ZReportRecei
           <span>Signature Caissier :</span>
           <span>Signature Gérant :</span>
         </div>
-        <div className="text-center text-[9px] text-gray-500">
+        <div className="text-center text-[9px] text-black">
           *** FIN DU RAPPORT Z - BIGHRISSEN PHONE ***
         </div>
       </div>
