@@ -10,13 +10,16 @@ export function printThermalReceipt(contentHtml: string, title: string = 'Receip
   if (!iframe) {
     iframe = document.createElement('iframe');
     iframe.id = 'thermal-print-iframe';
+    // Use off-screen placement with positive dimensions rather than visibility:hidden or 0x0 size
+    // to prevent Chromium from treating the iframe as unrendered (which causes blank print previews).
     iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '-9999px';
+    iframe.style.width = '80mm';
+    iframe.style.height = '1200px';
     iframe.style.border = '0';
-    iframe.style.visibility = 'hidden';
+    iframe.style.opacity = '0';
+    iframe.style.pointerEvents = 'none';
     document.body.appendChild(iframe);
   }
 

@@ -90,6 +90,15 @@ class POSMeView(APIView):
             except OperatorContextError:
                 clear_operator_context(request)
 
+        if not operator:
+            default_op = User.objects.filter(is_active=True, is_pos_operator=True).order_by("id").first()
+            if default_op:
+                try:
+                    create_operator_context(request, default_op)
+                    operator = default_op
+                except Exception:
+                    pass
+
         return Response(
             {
                 "authenticated": True,
