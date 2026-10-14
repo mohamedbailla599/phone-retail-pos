@@ -23,4 +23,22 @@ urlpatterns = [
         "api/exchanges/",
         include("apps.exchanges.api.urls"),
     ),
+    path(
+        "api/customers/",
+        include("apps.customers.api.urls"),
+    ),
+    path(
+        "api/returns/",
+        include("apps.returns.api.urls"),
+    ),
+    path(
+        "api/refunds/",
+        include("apps.refunds.api.urls"),
+    ),
+    path("api/auth/", include("apps.users.urls")),
+    path("api/printing/", include("apps.printing.api.urls")),
+    path("api/sales/", include("apps.sales.api.urls")),
+    path("api/catalog/", include("apps.catalog.api.urls")),
+    path("api/inventory/", include("apps.inventory.api.urls")),
+    path("api/warranty/", include("apps.warranty.api.urls")),
 ]

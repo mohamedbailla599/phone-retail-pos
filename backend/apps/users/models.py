@@ -5,9 +5,9 @@ from django.db import models
 class User(AbstractUser):
     class Role(models.TextChoices):
         OWNER = "OWNER", "Owner"
-        CASHIER = "CASHIER", "Cashier"
-        MANAGER = "MANAGER", "Manager"
-        TECHNICIAN = "TECHNICIAN", "Technician"
+
+    is_pos_account = models.BooleanField(default=False)
+    is_pos_operator = models.BooleanField(default=False)
 
     role = models.CharField(
         max_length=20,

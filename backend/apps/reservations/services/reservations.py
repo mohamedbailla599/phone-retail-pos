@@ -5,6 +5,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from apps.audit.models import AuditLog
+from apps.audit.services import record_audit
 from apps.customers.models import Customer
 from apps.inventory.models import DeviceItem, StockMovement
 from apps.inventory.services.inventory import (
@@ -196,12 +197,11 @@ def create_reservation(
         notes=notes,
     )
 
-    AuditLog.objects.create(
+    record_audit(
         actor=actor,
         action=AuditLog.Action.RESERVATION_CREATED,
         entity_type="Reservation",
         entity_id=reservation.id,
-        old_values=None,
         new_values={
             "status": reservation.status,
             "reserved_price": str(reservation.reserved_price),
@@ -294,7 +294,7 @@ def cancel_reservation(*, reservation_id, actor, reason=None):
     transaction_obj.status = Transaction.Status.CANCELLED
     transaction_obj.save(update_fields=["status", "updated_at"])
 
-    AuditLog.objects.create(
+    record_audit(
         actor=actor,
         action=AuditLog.Action.RESERVATION_CANCELLED,
         entity_type="Reservation",
@@ -336,7 +336,7 @@ def expire_reservation(*, reservation_id, actor):
     reservation.status = Reservation.Status.EXPIRED
     reservation.save(update_fields=["status", "updated_at"])
 
-    AuditLog.objects.create(
+    record_audit(
         actor=actor,
         action=AuditLog.Action.RESERVATION_EXPIRED,
         entity_type="Reservation",
@@ -456,6 +456,14 @@ def complete_reservation(*, reservation_id, actor):
     reservation.completed_by = actor
     reservation.save(
         update_fields=["status", "completed_at", "completed_by", "updated_at"]
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.RESERVATION_COMPLETED,
+        entity_type="Reservation",
+        entity_id=reservation.id,
+        reason="Reservation completed.",
     )
 
     return reservation

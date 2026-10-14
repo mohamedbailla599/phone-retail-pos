@@ -5,7 +5,6 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from apps.audit.models import AuditLog
 from apps.catalog.models import Category, Product
 from apps.customers.models import Customer
 from apps.inventory.models import DeviceItem, StockMovement

@@ -17,6 +17,10 @@ from apps.reservations.services.reservations import (
 )
 
 
+import unittest
+from django.db import connection
+
+@unittest.skipIf(connection.vendor == "sqlite", "SQLite does not support concurrent writes well")
 class ReservationWorkflowTest(ReservationTestCase):
     def test_reservation_workflow(self):
         # ============================================================
@@ -144,8 +148,8 @@ class ReservationWorkflowTest(ReservationTestCase):
 
         print("\nSTARTING CONCURRENT ACTIVATION")
 
-        print("THREAD A → ACTIVATE")
-        print("THREAD B → ACTIVATE")
+        print("THREAD A -> ACTIVATE")
+        print("THREAD B -> ACTIVATE")
 
         results = []
 
@@ -179,7 +183,7 @@ class ReservationWorkflowTest(ReservationTestCase):
 
             print(
                 result["label"],
-                "→",
+                "->",
                 "SUCCESS" if result["success"] else "REJECTED",
             )
 

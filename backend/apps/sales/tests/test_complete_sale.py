@@ -112,6 +112,8 @@ class CompleteSaleTests(SalesTestCase):
         completed_sale = complete_sale(
             sale_id=sale.id,
             actor=self.owner,
+            customer_name="Complete Sale Customer",
+            customer_phone="0600000001",
         )
 
         completed_sale.refresh_from_db()
@@ -275,6 +277,8 @@ class CompleteSaleTests(SalesTestCase):
             complete_sale(
                 sale_id=sale.id,
                 actor=self.owner,
+                customer_name="Unavailable Customer",
+                customer_phone="0600000002",
             )
 
         sale.refresh_from_db()

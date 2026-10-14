@@ -18,6 +18,7 @@ class RefundTestCase(TestCase):
             username=f"refund_test_{uuid4().hex[:8]}",
             password="test123",
             role=User.Role.OWNER,
+            is_pos_operator=True,
         )
 
         self.store_settings = StoreSettings.objects.create(

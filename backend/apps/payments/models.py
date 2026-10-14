@@ -8,6 +8,7 @@ class Payment(models.Model):
     class Method(models.TextChoices):
         CASH = "CASH", "Cash"
         BANK_TRANSFER = "BANK_TRANSFER", "Bank Transfer"
+        DEBT = "DEBT", "Credit / Debt"
 
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"

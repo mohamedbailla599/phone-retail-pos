@@ -21,7 +21,6 @@ from apps.reservations.services.reservations import (
     create_reservation,
 )
 from apps.sales.models import Transaction
-from core.exceptions import InvalidPayment
 
 
 class ReservationWorkflowTest(ReservationTestCase):

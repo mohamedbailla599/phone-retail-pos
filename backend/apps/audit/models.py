@@ -15,15 +15,27 @@ class AuditLog(models.Model):
             "RESERVATION_PRICE_CHANGED",
             "Reservation Price Changed",
         )
+        RESERVATION_COMPLETED = "RESERVATION_COMPLETED", "Reservation Completed"
 
         WARRANTY_APPROVED = "WARRANTY_APPROVED", "Warranty Approved"
         WARRANTY_REJECTED = "WARRANTY_REJECTED", "Warranty Rejected"
 
-        RETURN_APPROVED = "RETURN_APPROVED", "Return Approved"
-        RETURN_REJECTED = "RETURN_REJECTED", "Return Rejected"
+        SALE_CREATED = "SALE_CREATED", "Sale Created"
+        SALE_COMPLETED = "SALE_COMPLETED", "Sale Completed"
+        SALE_CANCELLED = "SALE_CANCELLED", "Sale Cancelled"
 
+        EXCHANGE_CREATED = "EXCHANGE_CREATED", "Exchange Created"
         EXCHANGE_APPROVED = "EXCHANGE_APPROVED", "Exchange Approved"
         EXCHANGE_REJECTED = "EXCHANGE_REJECTED", "Exchange Rejected"
+        EXCHANGE_COMPLETED = "EXCHANGE_COMPLETED", "Exchange Completed"
+
+        RETURN_CREATED = "RETURN_CREATED", "Return Created"
+        RETURN_APPROVED = "RETURN_APPROVED", "Return Approved"
+        RETURN_REJECTED = "RETURN_REJECTED", "Return Rejected"
+        RETURN_COMPLETED = "RETURN_COMPLETED", "Return Completed"
+
+        REFUND_CREATED = "REFUND_CREATED", "Refund Created"
+        REFUND_COMPLETED = "REFUND_COMPLETED", "Refund Completed"
 
         STOCK_ADJUSTED = "STOCK_ADJUSTED", "Stock Adjusted"
 

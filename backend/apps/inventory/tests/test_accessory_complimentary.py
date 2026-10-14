@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 from apps.inventory.models import AccessoryStock
-from apps.sales.models import TransactionItem
 from apps.sales.services.sales import add_accessory_to_sale, create_sale
 
 from .base import InventoryTestCase

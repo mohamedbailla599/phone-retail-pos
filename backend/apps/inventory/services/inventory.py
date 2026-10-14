@@ -1,6 +1,9 @@
 from django.db import transaction
 from django.utils import timezone
 
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit
+
 from apps.inventory.models import (
     AccessoryStock,
     DeviceItem,
@@ -53,6 +56,7 @@ def receive_device(
     imei_2=None,
     serial_number=None,
     battery_health=None,
+    battery_capacity_mah=None,
     condition=DeviceItem.Condition.A,
     reference_type=None,
     reference_id=None,
@@ -91,6 +95,7 @@ def receive_device(
         default_selling_price=default_selling_price,
         minimum_selling_price=minimum_selling_price,
         battery_health=battery_health,
+        battery_capacity_mah=battery_capacity_mah,
         condition=condition,
         status=DeviceItem.Status.IN_STOCK,
         received_at=now,
@@ -104,6 +109,13 @@ def receive_device(
         reference_type=reference_type,
         reference_id=reference_id,
         reason=reason,
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
     )
 
     return device
@@ -156,6 +168,13 @@ def reserve_device(
         reason=reason,
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
+    )
+
     return device
 
 
@@ -204,6 +223,13 @@ def release_reserved_device(
         reference_type=reference_type,
         reference_id=reference_id,
         reason=reason,
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
     )
 
     return device
@@ -257,6 +283,13 @@ def sell_device(
         reason=reason,
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
+    )
+
     return device
 
 @transaction.atomic
@@ -306,6 +339,13 @@ def send_device_to_repair(
         reference_type=reference_type,
         reference_id=reference_id,
         reason=reason,
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
     )
 
     return device
@@ -359,6 +399,13 @@ def complete_device_repair(
         reason=reason,
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
+    )
+
     return device
 
 
@@ -410,6 +457,13 @@ def mark_device_damaged(
         reason=reason,
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
+    )
+
     return device
 
 
@@ -459,6 +513,13 @@ def mark_device_lost(
         reference_type=reference_type,
         reference_id=reference_id,
         reason=reason,
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
     )
 
     return device
@@ -513,6 +574,13 @@ def return_device_to_stock(
         reason=reason,
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
+    )
+
     return device
 
 @transaction.atomic
@@ -560,6 +628,13 @@ def receive_accessory_stock(
         reference_id=reference_id,
         reason=reason,
         created_by=actor,
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.STOCK_ADJUSTED,
+        entity_type="AccessoryStock",
+        entity_id=stock.id,
     )
 
     return stock
@@ -618,6 +693,13 @@ def sell_accessory_stock(
         created_by=actor,
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.STOCK_ADJUSTED,
+        entity_type="AccessoryStock",
+        entity_id=stock.id,
+    )
+
     return stock
 
 
@@ -673,6 +755,13 @@ def complimentary_accessory_stock(
         reference_id=reference_id,
         reason=reason,
         created_by=actor,
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.STOCK_ADJUSTED,
+        entity_type="AccessoryStock",
+        entity_id=stock.id,
     )
 
     return stock
@@ -742,4 +831,63 @@ def adjust_accessory_stock(
         created_by=actor,
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.STOCK_ADJUSTED,
+        entity_type="AccessoryStock",
+        entity_id=stock.id,
+    )
+
     return stock
+
+
+@transaction.atomic
+def force_change_device_status(
+    *,
+    device_id,
+    target_status,
+    actor,
+    reason=None,
+):
+    """
+    Force change a device's status to any status, bypassing strict lifecycle validations.
+    Used for manual status corrections.
+    """
+    try:
+        device = (
+            DeviceItem.objects
+            .select_for_update()
+            .get(pk=device_id)
+        )
+    except DeviceItem.DoesNotExist:
+        raise DeviceNotFound(
+            f"Device {device_id} was not found."
+        )
+
+    if device.status == target_status:
+        return device
+
+    old_status = device.status
+    device.status = target_status
+    device.save(
+        update_fields=["status", "updated_at"]
+    )
+
+    StockMovement.objects.create(
+        device=device,
+        movement_type=StockMovement.MovementType.ADJUSTMENT, # Using ADJUSTMENT as a generic override
+        quantity=1,
+        from_status=old_status,
+        to_status=target_status,
+        reason=reason,
+        created_by=actor,
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.DEVICE_STATUS_CHANGED,
+        entity_type="DeviceItem",
+        entity_id=device.id,
+    )
+
+    return device

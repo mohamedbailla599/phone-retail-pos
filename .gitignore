@@ -7,9 +7,21 @@ __pycache__/
 
 # Django
 *.log
+*.sqlite3
+*.sqlite3-journal
 db.sqlite3
 media/
 staticfiles/
+
+# Temporary scratch & debug
+temp_jsdom/
+patch_inventory.py
+remove_f401.py
+backend/fix_*.py
+backend/check_*.py
+backend/get_*.py
+scratch_*
+*.bmp
 
 # Environment
 .env

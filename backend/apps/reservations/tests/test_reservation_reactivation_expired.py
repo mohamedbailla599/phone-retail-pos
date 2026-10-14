@@ -106,8 +106,9 @@ class ReservationWorkflowTest(ReservationTestCase):
         # FORCE EXPIRATION
         # ============================================================
 
+        reservation.reserved_at = timezone.now() - timedelta(minutes=2)
         reservation.expires_at = timezone.now() - timedelta(minutes=1)
-        reservation.save(update_fields=["expires_at", "updated_at"])
+        reservation.save(update_fields=["reserved_at", "expires_at", "updated_at"])
 
         reservation.refresh_from_db()
 

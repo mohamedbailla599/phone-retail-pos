@@ -26,32 +26,70 @@ class Exchange(models.Model):
         "customers.Customer",
         on_delete=models.PROTECT,
         related_name="exchanges",
+        null=True,
+        blank=True,
     )
 
-    original_transaction = models.ForeignKey(
-        "sales.Transaction",
+    customer_name = models.CharField(
+        max_length=100,
+        default="",
+    )
+
+    customer_phone = models.CharField(
+        max_length=50,
+        default="",
+    )
+
+    trade_in_product = models.ForeignKey(
+        "catalog.Product",
         on_delete=models.PROTECT,
-        related_name="exchanges",
+        related_name="exchanges_as_trade_in",
+        null=True,
     )
 
-    old_device = models.ForeignKey(
+    trade_in_imei = models.CharField(
+        max_length=100,
+        default="",
+    )
+
+    trade_in_condition = models.CharField(
+        max_length=20,
+        choices=[
+            ("A", "A (Like New)"),
+            ("B", "B (Good)"),
+            ("C", "C (Fair)"),
+            ("D", "D (Poor)"),
+            ("BROKEN", "Broken/For Parts"),
+        ],
+        default="A",
+    )
+
+    trade_in_battery_health = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    trade_in_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[
+            MinValueValidator(Decimal("0.00"))
+        ],
+    )
+
+    trade_in_device_item = models.ForeignKey(
         "inventory.DeviceItem",
         on_delete=models.PROTECT,
-        related_name="exchanges_as_old_device",
+        related_name="exchanges_created",
+        null=True,
+        blank=True,
     )
 
     new_device = models.ForeignKey(
         "inventory.DeviceItem",
         on_delete=models.PROTECT,
         related_name="exchanges_as_new_device",
-    )
-
-    old_device_value = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        validators=[
-            MinValueValidator(Decimal("0.00"))
-        ],
     )
 
     new_device_price = models.DecimalField(
@@ -150,10 +188,7 @@ class Exchange(models.Model):
                 fields=["customer", "created_at"]
             ),
             models.Index(
-                fields=["original_transaction", "created_at"]
-            ),
-            models.Index(
-                fields=["old_device"]
+                fields=["trade_in_imei"]
             ),
             models.Index(
                 fields=["new_device"]
@@ -162,8 +197,8 @@ class Exchange(models.Model):
 
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(old_device_value__gte=0),
-                name="exchange_old_value_non_negative",
+                condition=models.Q(trade_in_value__gte=0),
+                name="exchange_trade_in_value_non_negative",
             ),
             models.CheckConstraint(
                 condition=models.Q(new_device_price__gte=0),
@@ -172,12 +207,6 @@ class Exchange(models.Model):
             models.CheckConstraint(
                 condition=models.Q(difference_amount__gte=0),
                 name="exchange_difference_non_negative",
-            ),
-            models.CheckConstraint(
-                condition=~models.Q(
-                    old_device=models.F("new_device")
-                ),
-                name="exchange_devices_must_differ",
             ),
         ]
 

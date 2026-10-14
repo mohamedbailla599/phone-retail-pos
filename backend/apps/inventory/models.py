@@ -79,6 +79,11 @@ class DeviceItem(models.Model):
         ],
     )
 
+    battery_capacity_mah = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
+
     condition = models.CharField(
         max_length=1,
         choices=Condition.choices,

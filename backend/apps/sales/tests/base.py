@@ -10,6 +10,7 @@ class SalesTestCase(TestCase):
             username="sales_test",
             password="test123",
             role=User.Role.OWNER,
+            is_pos_operator=True,
         )
 
         self.store_settings = StoreSettings.objects.create(

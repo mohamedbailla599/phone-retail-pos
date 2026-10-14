@@ -1,0 +1,247 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* Keyframe animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ============================================
+   BIGHRISSEN PHONE — DESIGN SYSTEM
+   Premium Black & Gold POS Identity
+   ============================================ */
+
+@theme {
+  /* —— Core Palette —— */
+  --color-bg: #080808;
+  --color-surface: #111111;
+  --color-surface-alt: #171717;
+  --color-surface-elevated: #1D1D1D;
+  --color-surface-hover: #222222;
+
+  /* —— Gold Palette —— */
+  --color-gold: #D4AF5A;
+  --color-gold-bright: #E7C66A;
+  --color-gold-soft: #B89445;
+  --color-gold-muted: rgba(212,175,90,0.15);
+  --color-gold-border: rgba(212,175,90,0.30);
+  --color-gold-glow: rgba(212,175,90,0.08);
+
+  /* —— Text —— */
+  --color-text: #F5F5F5;
+  --color-text-secondary: #A7A7A7;
+  --color-text-muted: #6F6F6F;
+
+  /* —— Borders —— */
+  --color-border: rgba(255,255,255,0.08);
+  --color-border-subtle: rgba(255,255,255,0.04);
+
+  /* —— Status —— */
+  --color-success: #34D399;
+  --color-success-bg: rgba(52,211,153,0.10);
+  --color-warning: #F59E0B;
+  --color-warning-bg: rgba(245,158,11,0.10);
+  --color-danger: #DC2626;
+  --color-danger-bg: rgba(220,38,38,0.10);
+
+  /* —— Typography —— */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+
+  /* —— Radius —— */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 14px;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow: hidden;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 100px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.14);
+  }
+
+  /* Selection */
+  ::selection {
+    background: rgba(212,175,90,0.30);
+    color: #fff;
+  }
+
+  /* Remove autofill styling */
+  input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px #111111 inset !important;
+    -webkit-text-fill-color: #F5F5F5 !important;
+    caret-color: #F5F5F5 !important;
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+@layer utilities {
+  /* Glass panel */
+  .glass-panel {
+    background: rgba(255,255,255,0.035);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* Gold glass (for active/selected states) */
+  .glass-gold {
+    background: rgba(212,175,90,0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(212,175,90,0.20);
+  }
+
+  /* Gold glow */
+  .glow-gold {
+    box-shadow: 0 0 20px rgba(212,175,90,0.08), 0 0 40px rgba(212,175,90,0.04);
+  }
+
+  /* Subtle ambient background */
+  .bg-ambient {
+    background: 
+      radial-gradient(ellipse 600px 400px at 20% 50%, rgba(212,175,90,0.03), transparent),
+      radial-gradient(ellipse 400px 300px at 80% 30%, rgba(212,175,90,0.02), transparent),
+      var(--color-bg);
+  }
+
+  /* Login ambient */
+  .bg-login {
+    background:
+      radial-gradient(ellipse 500px 500px at 50% 40%, rgba(212,175,90,0.05), transparent),
+      radial-gradient(circle 800px at 50% 50%, rgba(17,17,17,1), transparent),
+      var(--color-bg);
+  }
+
+  /* Price styling */
+  .price-display {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+
+  /* Tabular nums for tables */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Transition presets */
+  .transition-fast {
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .transition-smooth {
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Card lift effect */
+  .hover-lift {
+    transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+}
+
+/* ============================================
+   HTML5-QRCODE OVERRIDES
+   ============================================ */
+#reader {
+  border: none !important;
+  background: transparent !important;
+}
+#reader video {
+  border-radius: 12px !important;
+}
+#reader__scan_region {
+  border: none !important;
+}
+#reader__dashboard {
+  display: none !important;
+}
+
+/* ============================================
+   THERMAL RECEIPT PRINT MEDIA RULES
+   ============================================ */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #thermal-receipt-root,
+  #thermal-receipt-root * {
+    visibility: visible !important;
+  }
+
+  #thermal-receipt-root {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 76mm !important;
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+    padding: 4mm 2mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    z-index: 999999 !important;
+  }
+}

@@ -4,6 +4,8 @@ from decimal import Decimal, InvalidOperation
 from django.db import models, transaction
 from django.utils import timezone
 
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit
 from apps.customers.models import Customer
 from apps.inventory.models import AccessoryStock, DeviceItem, StockMovement
 from apps.sales.models import Transaction, TransactionItem
@@ -26,6 +28,22 @@ def _get_store_settings():
     settings = StoreSettings.objects.first()
 
     if settings is None:
+        from apps.users.models import User
+        admin_user = User.objects.filter(is_active=True).first()
+        if admin_user:
+            settings, _ = StoreSettings.objects.get_or_create(
+                id=1,
+                defaults={
+                    "store_name": "Bighrissen Phone",
+                    "currency": "MAD",
+                    "default_device_warranty_months": 3,
+                    "default_reservation_months": 1,
+                    "default_accessory_warranty_months": 1,
+                    "receipt_prefix": "BP",
+                    "updated_by": admin_user,
+                },
+            )
+            return settings
         raise RuntimeError(
             "Store settings have not been configured."
         )
@@ -52,6 +70,8 @@ def create_sale(
     *,
     actor,
     customer=None,
+    customer_name=None,
+    customer_phone=None,
     notes=None,
 ):
     """
@@ -63,9 +83,17 @@ def create_sale(
     """
     settings = _get_store_settings()
 
+    if customer:
+        if not customer_name:
+            customer_name = customer.full_name
+        if not customer_phone:
+            customer_phone = customer.phone_number
+
     transaction_obj = Transaction.objects.create(
         receipt_id="PENDING",
         customer=customer,
+        customer_name=customer_name,
+        customer_phone=customer_phone,
         transaction_type=Transaction.TransactionType.SALE,
         status=Transaction.Status.DRAFT,
         subtotal=0,
@@ -89,7 +117,53 @@ def create_sale(
         update_fields=["receipt_id"]
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.SALE_CREATED,
+        entity_type="Transaction",
+        entity_id=transaction_obj.id,
+        reason=notes,
+    )
+
     return transaction_obj
+
+
+@transaction.atomic
+def cancel_sale(
+    *,
+    sale_id,
+    actor,
+):
+    """
+    Cancel a DRAFT sale.
+    """
+    sale = (
+        Transaction.objects
+        .select_for_update()
+        .filter(
+            id=sale_id,
+            transaction_type=Transaction.TransactionType.SALE,
+        )
+        .first()
+    )
+
+    if sale is None:
+        raise InvalidSale("Sale does not exist.")
+
+    if sale.status != Transaction.Status.DRAFT:
+        raise InvalidSale("Only DRAFT sales can be cancelled.")
+
+    sale.status = Transaction.Status.CANCELLED
+    sale.save(update_fields=["status", "updated_at"])
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.SALE_CANCELLED,
+        entity_type="Transaction",
+        entity_id=sale.id,
+    )
+
+    return sale
 
 
 @transaction.atomic
@@ -609,6 +683,15 @@ def update_sale_item_price(
         ]
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.PRICE_OVERRIDE,
+        entity_type="TransactionItem",
+        entity_id=item.id,
+        old_values={"price_sold": str(item.price_sold)},
+        new_values={"price_sold": str(new_price)},
+    )
+
     subtotal = _calculate_sale_subtotal(sale)
 
     if sale.discount_amount > subtotal:
@@ -708,6 +791,15 @@ def set_sale_discount(
         ]
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.PRICE_OVERRIDE,
+        entity_type="Transaction",
+        entity_id=sale.id,
+        old_values={"discount_amount": str(sale.discount_amount)},
+        new_values={"discount_amount": str(discount_amount)},
+    )
+
     return sale
 
 
@@ -776,6 +868,35 @@ def move_sale_to_pending_payment(
 
     return sale
 
+@transaction.atomic
+def revert_sale_to_draft(
+    *,
+    sale_id,
+    actor,
+):
+    """
+    Revert a PENDING_PAYMENT sale back to DRAFT.
+    """
+    sale = (
+        Transaction.objects
+        .select_for_update()
+        .filter(
+            id=sale_id,
+            transaction_type=Transaction.TransactionType.SALE,
+        )
+        .first()
+    )
+
+    if sale is None:
+        raise InvalidSale("Sale does not exist.")
+
+    if sale.status != Transaction.Status.PENDING_PAYMENT:
+        raise InvalidSale("Only PENDING_PAYMENT sales can be reverted to DRAFT.")
+
+    sale.status = Transaction.Status.DRAFT
+    sale.save(update_fields=["status", "updated_at"])
+    return sale
+
 def _add_calendar_months(value, months):
     """Add calendar months while keeping the date valid."""
     if months <= 0:
@@ -794,6 +915,8 @@ def complete_sale(
     *,
     sale_id,
     actor,
+    customer_name=None,
+    customer_phone=None,
 ):
     """
     Complete a SALE atomically after full confirmed payment.
@@ -1009,14 +1132,43 @@ def complete_sale(
     # ---------------------------------------------------------
     # COMPLETE SALE
     # ---------------------------------------------------------
+    
+    # Save the final customer metadata (overriding anything previously set if provided here)
+    if customer_name is not None:
+        sale.customer_name = customer_name
+    if customer_phone is not None:
+        sale.customer_phone = customer_phone
+
+    if sale.customer:
+        if not sale.customer_name:
+            sale.customer_name = sale.customer.full_name
+        if not sale.customer_phone:
+            sale.customer_phone = sale.customer.phone_number
+        
+    has_devices = any(item.device_id is not None for item in items)
+    if has_devices:
+        if not sale.customer_name or not sale.customer_phone:
+            raise InvalidSale(
+                "Customer name and phone are required when selling a device."
+            )
+
     sale.status = Transaction.Status.COMPLETED
     sale.completed_at = completed_at
     sale.save(
         update_fields=[
             "status",
+            "customer_name",
+            "customer_phone",
             "completed_at",
             "updated_at",
         ]
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.SALE_COMPLETED,
+        entity_type="Transaction",
+        entity_id=sale.id,
     )
 
     return sale

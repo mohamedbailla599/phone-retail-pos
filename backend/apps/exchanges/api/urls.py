@@ -3,7 +3,7 @@ from django.urls import path
 from .views import (
     ExchangeApproveView,
     ExchangeCompleteView,
-    ExchangeCreateView,
+    ExchangeListCreateView,
     ExchangeDetailView,
     ExchangePaymentCreateView,
     ExchangePaymentStatusView,
@@ -17,8 +17,8 @@ from .views import (
 urlpatterns = [
     path(
         "",
-        ExchangeCreateView.as_view(),
-        name="exchange-create",
+        ExchangeListCreateView.as_view(),
+        name="exchange-list-create",
     ),
     path(
         "<int:exchange_id>/",

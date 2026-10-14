@@ -4,7 +4,6 @@ from django.utils import timezone
 
 from apps.catalog.models import Category, Product
 from apps.inventory.models import DeviceItem
-from apps.sales.models import TransactionItem
 from apps.sales.services.sales import (
     add_device_to_sale,
     create_sale,

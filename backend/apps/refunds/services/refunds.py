@@ -4,6 +4,8 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit
 from apps.payments.models import Payment
 from apps.refunds.models import Refund, RefundPaymentAllocation
 from apps.returns.models import Return
@@ -263,6 +265,14 @@ def create_refund(
         requested_at=timezone.now(),
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.REFUND_CREATED,
+        entity_type="Refund",
+        entity_id=refund.id,
+        reason=reason,
+    )
+
     return refund
 
 
@@ -390,6 +400,13 @@ def complete_refund(
             ]
         )
 
+        record_audit(
+            actor=actor,
+            action=AuditLog.Action.REFUND_COMPLETED,
+            entity_type="Refund",
+            entity_id=refund.id,
+        )
+
         return refund
 
     # Future non-return refund sources.
@@ -404,6 +421,13 @@ def complete_refund(
             "completed_at",
             "updated_at",
         ]
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.REFUND_COMPLETED,
+        entity_type="Refund",
+        entity_id=refund.id,
     )
 
     return refund

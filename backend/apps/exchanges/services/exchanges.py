@@ -9,6 +9,10 @@ from apps.inventory.models import DeviceItem, StockMovement
 from apps.payments.models import Payment
 from apps.refunds.models import Refund
 from apps.sales.models import Transaction, TransactionItem
+from apps.inventory.services.inventory import receive_device
+
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit
 
 from core.exceptions import (
     ExchangeError,
@@ -94,47 +98,6 @@ def _get_exchange_or_raise(exchange_id):
         )
 
 
-def _validate_original_transaction(
-    *,
-    transaction_obj,
-    customer,
-    old_device,
-):
-    """
-    Verify that the old device was actually sold
-    to the customer through the original transaction.
-    """
-
-    if transaction_obj.transaction_type != Transaction.TransactionType.SALE:
-        raise ExchangeNotAllowed(
-            "An exchange can only reference a completed SALE."
-        )
-
-    if transaction_obj.status != Transaction.Status.COMPLETED:
-        raise ExchangeNotAllowed(
-            "The original transaction must be COMPLETED."
-        )
-
-    if transaction_obj.customer_id != customer.id:
-        raise ExchangeNotAllowed(
-            "The customer does not belong to the original transaction."
-        )
-
-    item_exists = (
-        TransactionItem.objects
-        .filter(
-            transaction=transaction_obj,
-            device=old_device,
-        )
-        .exists()
-    )
-
-    if not item_exists:
-        raise ExchangeNotAllowed(
-            "The old device was not sold in the original transaction."
-        )
-
-
 # ============================================================
 # CREATE
 # ============================================================
@@ -142,12 +105,16 @@ def _validate_original_transaction(
 @transaction.atomic
 def create_exchange(
     *,
-    customer,
-    original_transaction,
-    old_device,
+    customer_name,
+    customer_phone,
+    trade_in_product,
+    trade_in_imei,
+    trade_in_condition,
+    trade_in_battery_health,
+    trade_in_value,
     new_device,
-    old_device_value,
     new_device_price,
+    customer=None,
     reason=None,
     actor=None,
 ):
@@ -161,28 +128,23 @@ def create_exchange(
         REQUESTED
     """
 
-    if customer is None:
+    if not customer_name or not customer_phone:
         raise ExchangeNotAllowed(
-            "A customer is required for an exchange."
+            "Customer name and phone are required for a trade-in exchange."
         )
 
-    if original_transaction is None:
+    if not trade_in_product or not trade_in_imei:
         raise ExchangeNotAllowed(
-            "An original transaction is required."
+            "Trade-in product and IMEI are required."
         )
 
-    if old_device is None or new_device is None:
+    if new_device is None:
         raise ExchangeNotAllowed(
-            "Both old and new devices are required."
-        )
-
-    if old_device.id == new_device.id:
-        raise ExchangeNotAllowed(
-            "The old and new devices must be different."
+            "New device is required."
         )
 
     try:
-        old_value = Decimal(str(old_device_value))
+        old_value = Decimal(str(trade_in_value))
         new_price = Decimal(str(new_device_price))
     except (
         TypeError,
@@ -195,7 +157,7 @@ def create_exchange(
 
     if old_value < Decimal("0.00"):
         raise ExchangeNotAllowed(
-            "Old device value cannot be negative."
+            "Trade-in device value cannot be negative."
         )
 
     if new_price < Decimal("0.00"):
@@ -204,20 +166,8 @@ def create_exchange(
         )
 
     # --------------------------------------------------------
-    # Lock devices
+    # Lock new device
     # --------------------------------------------------------
-
-    locked_old_device = (
-        DeviceItem.objects
-        .select_for_update()
-        .filter(pk=old_device.id)
-        .first()
-    )
-
-    if locked_old_device is None:
-        raise ExchangeNotAllowed(
-            "Old device does not exist."
-        )
 
     locked_new_device = (
         DeviceItem.objects
@@ -231,56 +181,10 @@ def create_exchange(
             "New device does not exist."
         )
 
-    # Old device must currently be SOLD.
-    if locked_old_device.status != DeviceItem.Status.SOLD:
-        raise ExchangeNotAllowed(
-            "The old device must have status SOLD."
-        )
-
     # New device must currently be IN_STOCK.
     if locked_new_device.status != DeviceItem.Status.IN_STOCK:
         raise ExchangeNotAllowed(
             "The new device must be IN_STOCK."
-        )
-
-    # --------------------------------------------------------
-    # Validate original sale
-    # --------------------------------------------------------
-
-    transaction_obj = (
-        Transaction.objects
-        .select_for_update()
-        .filter(pk=original_transaction.id)
-        .first()
-    )
-
-    if transaction_obj is None:
-        raise ExchangeNotAllowed(
-            "The original transaction does not exist."
-        )
-
-    _validate_original_transaction(
-        transaction_obj=transaction_obj,
-        customer=customer,
-        old_device=locked_old_device,
-    )
-
-    # --------------------------------------------------------
-    # Prevent the same SOLD device from being exchanged twice
-    # --------------------------------------------------------
-
-    already_exchanged = (
-        Exchange.objects
-        .filter(
-            old_device=locked_old_device,
-            status=Exchange.Status.COMPLETED,
-        )
-        .exists()
-    )
-
-    if already_exchanged:
-        raise ExchangeNotAllowed(
-            "This device has already been exchanged."
         )
 
     # --------------------------------------------------------
@@ -297,16 +201,28 @@ def create_exchange(
     exchange = Exchange.objects.create(
         exchange_number=_generate_exchange_number(),
         customer=customer,
-        original_transaction=transaction_obj,
-        old_device=locked_old_device,
+        customer_name=customer_name,
+        customer_phone=customer_phone,
+        trade_in_product=trade_in_product,
+        trade_in_imei=trade_in_imei,
+        trade_in_condition=trade_in_condition,
+        trade_in_battery_health=trade_in_battery_health,
+        trade_in_value=old_value,
         new_device=locked_new_device,
-        old_device_value=old_value,
         new_device_price=new_price,
         difference_amount=difference_amount,
         financial_direction=financial_direction,
         status=Exchange.Status.REQUESTED,
         reason=reason,
         requested_at=timezone.now(),
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.EXCHANGE_CREATED,
+        entity_type="Exchange",
+        entity_id=exchange.id,
+        reason=reason,
     )
 
     return exchange
@@ -585,32 +501,24 @@ def complete_exchange(
     actor,
 ):
     """
-    Complete an approved device-to-device exchange.
+    Complete an approved device-to-device trade-in exchange.
 
     Atomic operation:
 
-        OLD DEVICE:
-            SOLD -> IN_STOCK
+        TRADE-IN DEVICE:
+            Created in IN_STOCK via receive_device
 
         NEW DEVICE:
             IN_STOCK -> SOLD
 
         EXCHANGE:
             APPROVED -> COMPLETED
-
-    Two immutable StockMovement records are created.
-
-    Financial difference is calculated when the exchange is
-    created and remains locked on the exchange.
     """
 
     exchange = (
         Exchange.objects
         .select_for_update()
-        .select_related(
-            "customer",
-            "original_transaction",
-        )
+        .select_related("customer")
         .filter(pk=exchange_id)
         .first()
     )
@@ -625,40 +533,22 @@ def complete_exchange(
             "Only APPROVED exchanges can be completed."
         )
 
-        # --------------------------------------------------------
+    # --------------------------------------------------------
     # FINANCIAL SETTLEMENT
     # --------------------------------------------------------
 
     _validate_financial_settlement(exchange)
 
     # --------------------------------------------------------
-    # Lock both devices in deterministic order
+    # Lock new device
     # --------------------------------------------------------
 
-    device_ids = sorted([
-        exchange.old_device_id,
-        exchange.new_device_id,
-    ])
-
-    devices = (
+    new_device = (
         DeviceItem.objects
         .select_for_update()
-        .filter(id__in=device_ids)
-        .order_by("id")
+        .filter(pk=exchange.new_device_id)
+        .first()
     )
-
-    device_map = {
-        device.id: device
-        for device in devices
-    }
-
-    old_device = device_map.get(exchange.old_device_id)
-    new_device = device_map.get(exchange.new_device_id)
-
-    if old_device is None:
-        raise ExchangeNotAllowed(
-            "Old device no longer exists."
-        )
 
     if new_device is None:
         raise ExchangeNotAllowed(
@@ -667,16 +557,7 @@ def complete_exchange(
 
     # --------------------------------------------------------
     # Re-check inventory at completion time.
-    #
-    # This is important because approval may happen hours
-    # before completion.
     # --------------------------------------------------------
-
-    if old_device.status != DeviceItem.Status.SOLD:
-        raise ExchangeNotAllowed(
-            "Old device is no longer SOLD. "
-            "The exchange cannot be completed."
-        )
 
     if new_device.status != DeviceItem.Status.IN_STOCK:
         raise ExchangeNotAllowed(
@@ -685,69 +566,27 @@ def complete_exchange(
         )
 
     # --------------------------------------------------------
-    # Re-check that old device belongs to original sale
+    # TRADE-IN DEVICE: Create in IN_STOCK
     # --------------------------------------------------------
 
-    original_transaction = (
-        Transaction.objects
-        .select_for_update()
-        .filter(pk=exchange.original_transaction_id)
-        .first()
-    )
-
-    if original_transaction is None:
-        raise ExchangeNotAllowed(
-            "The original transaction no longer exists."
-        )
-
-    if original_transaction.status != Transaction.Status.COMPLETED:
-        raise ExchangeNotAllowed(
-            "The original transaction must remain COMPLETED."
-        )
-
-    old_item_exists = (
-        TransactionItem.objects
-        .filter(
-            transaction=original_transaction,
-            device=old_device,
-        )
-        .exists()
-    )
-
-    if not old_item_exists:
-        raise ExchangeNotAllowed(
-            "The old device is not part of the original sale."
-        )
-
-    # --------------------------------------------------------
-    # OLD DEVICE: SOLD -> IN_STOCK
-    # --------------------------------------------------------
-
-    old_previous_status = old_device.status
-
-    old_device.status = DeviceItem.Status.IN_STOCK
-
-    old_device.save(
-        update_fields=[
-            "status",
-            "updated_at",
-        ]
-    )
-
-    StockMovement.objects.create(
-        device=old_device,
-        movement_type=StockMovement.MovementType.EXCHANGE_OUT,
-        quantity=1,
-        from_status=old_previous_status,
-        to_status=DeviceItem.Status.IN_STOCK,
+    trade_in_device = receive_device(
+        actor=actor,
+        product=exchange.trade_in_product,
+        cost_price=exchange.trade_in_value,
+        default_selling_price=exchange.trade_in_value,
+        minimum_selling_price=exchange.trade_in_value,
+        imei_1=exchange.trade_in_imei,
+        battery_health=exchange.trade_in_battery_health,
+        condition=exchange.trade_in_condition,
         reference_type="Exchange",
         reference_id=exchange.id,
         reason=(
             f"Exchange {exchange.exchange_number}: "
-            f"old device returned to stock."
+            f"trade-in device received."
         ),
-        created_by=actor,
     )
+    
+    exchange.trade_in_device_item = trade_in_device
 
     # --------------------------------------------------------
     # NEW DEVICE: IN_STOCK -> SOLD
@@ -789,11 +628,20 @@ def complete_exchange(
 
     exchange.save(
         update_fields=[
+            "trade_in_device_item",
             "status",
             "completed_by",
             "completed_at",
             "updated_at",
         ]
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.EXCHANGE_COMPLETED,
+        entity_type="Exchange",
+        entity_id=exchange.id,
+        reason=f"Exchange {exchange.exchange_number} was completed.",
     )
 
     return exchange

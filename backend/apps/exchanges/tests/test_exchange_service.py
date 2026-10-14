@@ -38,10 +38,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("4000.00"),
             new_device=new_device,
-            old_device_value=Decimal("4000.00"),
             new_device_price=Decimal("5500.00"),
             reason="Customer wants an upgrade.",
             actor=self.owner,
@@ -67,7 +71,9 @@ class ExchangeServiceTest(ExchangeTestCase):
         new_device.refresh_from_db()
         exchange.refresh_from_db()
 
-        self.assertEqual(old_device.status, DeviceItem.Status.IN_STOCK)
+        trade_in_device = DeviceItem.objects.get(imei_1=exchange.trade_in_imei)
+
+        self.assertEqual(trade_in_device.status, DeviceItem.Status.IN_STOCK)
         self.assertEqual(new_device.status, DeviceItem.Status.SOLD)
         self.assertEqual(exchange.status, Exchange.Status.COMPLETED)
         self.assertEqual(
@@ -94,10 +100,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("5000.00"),
             new_device=new_device,
-            old_device_value=Decimal("5000.00"),
             new_device_price=Decimal("4000.00"),
             actor=self.owner,
         )
@@ -134,10 +144,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("4000.00"),
             new_device=new_device,
-            old_device_value=Decimal("4000.00"),
             new_device_price=Decimal("4000.00"),
             actor=self.owner,
         )
@@ -161,10 +175,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("4000.00"),
             new_device=new_device,
-            old_device_value=Decimal("4000.00"),
             new_device_price=Decimal("4500.00"),
             actor=self.owner,
         )
@@ -176,28 +194,6 @@ class ExchangeServiceTest(ExchangeTestCase):
         exchange.refresh_from_db()
         self.assertEqual(exchange.status, Exchange.Status.REJECTED)
 
-    def test_old_device_must_be_sold(self):
-        old_device = self.create_device(
-            product=self.old_product,
-            imei="999999999999999",
-            status=DeviceItem.Status.IN_STOCK,
-        )
-        new_device = self.create_device(
-            product=self.new_product,
-            imei="101010101010101",
-            status=DeviceItem.Status.IN_STOCK,
-        )
-        sale = self.create_completed_sale(old_device)
-        with self.assertRaises(Exception):
-            create_exchange(
-                customer=self.customer,
-                original_transaction=sale,
-                old_device=old_device,
-                new_device=new_device,
-                old_device_value=Decimal("4000.00"),
-                new_device_price=Decimal("4500.00"),
-                actor=self.owner,
-            )
 
     def test_new_device_must_be_in_stock(self):
         old_device = self.create_device(
@@ -214,11 +210,15 @@ class ExchangeServiceTest(ExchangeTestCase):
         with self.assertRaises(Exception):
             create_exchange(
                 customer=self.customer,
-                original_transaction=sale,
-                old_device=old_device,
-                new_device=new_device,
-                old_device_value=Decimal("4000.00"),
-                new_device_price=Decimal("4500.00"),
+                customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("4000.00"),
+            new_device=new_device,
+            new_device_price=Decimal("4500.00"),
                 actor=self.owner,
             )
 
@@ -254,10 +254,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("4000.00"),
             new_device=new_device,
-            old_device_value=Decimal("4000.00"),
             new_device_price=Decimal("4500.00"),
             actor=self.owner,
         )
@@ -287,10 +291,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("4000.00"),
             new_device=new_device,
-            old_device_value=Decimal("4000.00"),
             new_device_price=Decimal("4500.00"),
             actor=self.owner,
         )
@@ -317,10 +325,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("4000.00"),
             new_device=new_device,
-            old_device_value=Decimal("4000.00"),
             new_device_price=Decimal("4500.00"),
             actor=self.owner,
         )
@@ -355,10 +367,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("4000.00"),
             new_device=new_device,
-            old_device_value=Decimal("4000.00"),
             new_device_price=Decimal("4500.00"),
             actor=self.owner,
         )
@@ -379,7 +395,9 @@ class ExchangeServiceTest(ExchangeTestCase):
         old_device.refresh_from_db()
         new_device.refresh_from_db()
         exchange.refresh_from_db()
-        self.assertEqual(old_device.status, DeviceItem.Status.IN_STOCK)
+        trade_in_device = DeviceItem.objects.get(imei_1=exchange.trade_in_imei)
+        
+        self.assertEqual(trade_in_device.status, DeviceItem.Status.IN_STOCK)
         self.assertEqual(new_device.status, DeviceItem.Status.SOLD)
         self.assertEqual(exchange.status, Exchange.Status.COMPLETED)
 
@@ -399,10 +417,14 @@ class ExchangeServiceTest(ExchangeTestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal("5000.00"),
             new_device=new_device,
-            old_device_value=Decimal("5000.00"),
             new_device_price=Decimal("4000.00"),
             actor=self.owner,
         )

@@ -17,6 +17,7 @@ class ExchangeTestCase(TestCase):
             username="exchange_test_owner",
             password="testpass123",
             role=User.Role.OWNER,
+            is_pos_operator=True,
         )
         cls.customer = Customer.objects.create(
             phone_number="0600000000",
@@ -116,10 +117,14 @@ class ExchangeTestCase(TestCase):
         sale = self.create_completed_sale(old_device)
         exchange = create_exchange(
             customer=self.customer,
-            original_transaction=sale,
-            old_device=old_device,
+            customer_name=self.customer.full_name,
+            customer_phone=self.customer.phone_number,
+            trade_in_product=old_device.product,
+            trade_in_imei=f"T-{old_device.imei_1}",
+            trade_in_condition="GOOD",
+            trade_in_battery_health=90,
+            trade_in_value=Decimal(old_value),
             new_device=new_device,
-            old_device_value=Decimal(old_value),
             new_device_price=Decimal(new_price),
             reason=reason,
             actor=self.owner,

@@ -1,6 +1,8 @@
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit
 from apps.inventory.services.inventory import return_device_to_stock
 from apps.returns.models import Return, ReturnItem
 from apps.sales.models import Transaction, TransactionItem
@@ -145,6 +147,14 @@ def create_return(
         line_total=line_total,
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.RETURN_CREATED,
+        entity_type="Return",
+        entity_id=return_record.id,
+        reason=reason,
+    )
+
     return return_record
 
 @transaction.atomic
@@ -169,6 +179,13 @@ def approve_return(*, return_id, actor):
             "status",
             "approved_by",
         ]
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.RETURN_APPROVED,
+        entity_type="Return",
+        entity_id=return_record.id,
     )
 
     return return_record
@@ -223,6 +240,14 @@ def process_device_return(*, return_id, actor, reason=None):
 
     return_record.status = Return.Status.RESTOCKED
     return_record.save(update_fields=["status"])
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.RETURN_COMPLETED,
+        entity_type="Return",
+        entity_id=return_record.id,
+        reason=reason or return_record.reason,
+    )
 
     return return_record, device
 

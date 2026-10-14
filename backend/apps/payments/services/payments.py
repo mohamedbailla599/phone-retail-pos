@@ -4,6 +4,8 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit
 from apps.payments.models import Payment
 from apps.sales.models import Transaction
 
@@ -150,6 +152,7 @@ def create_payment(
     if method not in (
         Payment.Method.CASH,
         Payment.Method.BANK_TRANSFER,
+        Payment.Method.DEBT,
     ):
         raise InvalidPayment(
             "Unsupported payment method."
@@ -176,6 +179,25 @@ def create_payment(
         confirmed_by = actor
         confirmed_at = timezone.now()
 
+    elif method == Payment.Method.DEBT:
+        if not transaction_obj.customer:
+            raise InvalidPayment(
+                "Un client enregistré doit être sélectionné pour enregistrer une vente à crédit."
+            )
+        customer = transaction_obj.customer
+        if customer.credit_limit and customer.credit_limit > Decimal("0.00"):
+            if (customer.current_debt + amount) > customer.credit_limit:
+                raise InvalidPayment(
+                    f"Plafond de crédit dépassé ({customer.credit_limit} DH). "
+                    f"Dette actuelle: {customer.current_debt} DH, Montant demandé: {amount} DH."
+                )
+        customer.current_debt += amount
+        customer.save(update_fields=["current_debt", "updated_at"])
+
+        status = Payment.Status.CONFIRMED
+        confirmed_by = actor
+        confirmed_at = timezone.now()
+
     else:
         status = Payment.Status.PENDING
         confirmed_by = None
@@ -191,6 +213,14 @@ def create_payment(
         confirmed_by=confirmed_by,
         confirmed_at=confirmed_at,
     )
+
+    if status == Payment.Status.CONFIRMED:
+        record_audit(
+            actor=actor,
+            action=AuditLog.Action.PAYMENT_CONFIRMED,
+            entity_type="Payment",
+            entity_id=payment.id,
+        )
 
     return payment
 
@@ -250,6 +280,13 @@ def confirm_bank_transfer(
         ]
     )
 
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.PAYMENT_CONFIRMED,
+        entity_type="Payment",
+        entity_id=payment.id,
+    )
+
     return payment
 
 
@@ -300,6 +337,13 @@ def reject_bank_transfer(
             "status",
             "rejected_at",
         ]
+    )
+
+    record_audit(
+        actor=actor,
+        action=AuditLog.Action.PAYMENT_REJECTED,
+        entity_type="Payment",
+        entity_id=payment.id,
     )
 
     return payment

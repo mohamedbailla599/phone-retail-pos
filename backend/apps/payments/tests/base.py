@@ -19,6 +19,7 @@ class PaymentTestCase(TestCase):
             username="payment_test",
             password="test123",
             role=User.Role.OWNER,
+            is_pos_operator=True,
         )
 
         self.store_settings = StoreSettings.objects.create(
@@ -32,14 +33,16 @@ class PaymentTestCase(TestCase):
         )
 
     def create_sale_with_accessories(self, quantity=10):
+        import uuid
+        uid = uuid.uuid4().hex[:8]
         category = Category.objects.create(
-            name=f"Payment Test Category {self._testMethodName}",
+            name=f"Payment Test Category {self._testMethodName} {uid}",
             is_device=False,
         )
 
         product = Product.objects.create(
             category=category,
-            sku=f"PAY-{self._testMethodName}-{quantity}",
+            sku=f"PAY-{self._testMethodName}-{quantity}-{uid}",
             name="Payment Test Accessory",
             brand="TEST",
             platform="OTHER",

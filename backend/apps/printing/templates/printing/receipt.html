@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt #{{ transaction.receipt_number }}</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 80mm; /* Standard thermal receipt width */
+            margin: 0 auto;
+            padding: 10px;
+            font-size: 12px;
+            color: #000;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+        .bold { font-weight: bold; }
+        .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
+        .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .item-details { display: flex; flex-direction: column; }
+        .header { margin-bottom: 20px; }
+        .footer { margin-top: 20px; font-size: 10px; }
+        @media print {
+            body { width: 100%; margin: 0; padding: 0; }
+            @page { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header text-center">
+        <h2 style="margin: 0;">BIGHRISSEN PHONE</h2>
+        <p style="margin: 5px 0;">Receipt #{{ transaction.receipt_number }}</p>
+        <p style="margin: 5px 0;">Date: {{ transaction.created_at|date:"Y-m-d H:i" }}</p>
+        {% if transaction.customer %}
+            <p style="margin: 5px 0;">Customer: {{ transaction.customer.full_name }}</p>
+        {% endif %}
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+        {% for item in items %}
+            <div class="item-row">
+                <div class="item-details" style="flex: 1;">
+                    <span class="bold">{{ item.product_snapshot.name|default:"Product" }}</span>
+                    {% if item.device %}
+                        <span>IMEI: {{ item.device.imei_1 }}</span>
+                    {% endif %}
+                </div>
+                <div class="text-right">
+                    <span>{{ item.quantity }}x {{ item.unit_price }} DH</span>
+                </div>
+            </div>
+            <div class="item-row text-right">
+                <span class="bold">{{ item.subtotal }} DH</span>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="item-row">
+        <span class="bold">TOTAL</span>
+        <span class="bold">{{ transaction.total }} DH</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+        <p class="bold" style="margin-bottom: 5px;">PAYMENTS</p>
+        {% for payment in payments %}
+            <div class="item-row">
+                <span>{{ payment.get_method_display }}</span>
+                <span>{{ payment.amount }} DH</span>
+            </div>
+        {% empty %}
+            <div class="item-row">
+                <span>No payments made</span>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="footer text-center">
+        <p>Thank you for your business!</p>
+        <p>Returns & Exchanges valid for 7 days with this receipt.</p>
+    </div>
+</body>
+</html>

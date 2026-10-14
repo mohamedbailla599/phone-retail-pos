@@ -31,6 +31,8 @@ class Refund(models.Model):
         "customers.Customer",
         on_delete=models.PROTECT,
         related_name="refunds",
+        null=True,
+        blank=True,
     )
 
     source_type = models.CharField(

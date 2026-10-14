@@ -27,7 +27,6 @@ def _get_exchange_or_raise(exchange_id):
             .select_for_update()
             .select_related(
                 "customer",
-                "original_transaction",
             )
             .get(pk=exchange_id)
         )

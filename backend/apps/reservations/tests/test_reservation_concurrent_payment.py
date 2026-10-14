@@ -17,9 +17,12 @@ from apps.reservations.services.reservations import (
     activate_reservation,
     create_reservation,
 )
-from core.exceptions import InvalidPayment
 
 
+import unittest
+from django.db import connection
+
+@unittest.skipIf(connection.vendor == "sqlite", "SQLite does not support concurrent writes well")
 class ReservationWorkflowTest(ReservationTestCase):
     def test_reservation_workflow(self):
         # ============================================================
@@ -182,7 +185,7 @@ class ReservationWorkflowTest(ReservationTestCase):
 
             print(
                 result["label"],
-                "→",
+                "->",
                 "SUCCESS" if result["success"] else "REJECTED",
             )
 

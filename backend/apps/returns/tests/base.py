@@ -29,6 +29,7 @@ class ReturnTestCase(TestCase):
             password="test123",
             is_active=True,
             role=User.Role.OWNER,
+            is_pos_operator=True,
         )
 
         self.store_settings = StoreSettings.objects.create(

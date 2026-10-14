@@ -7,26 +7,8 @@ from apps.refunds.models import Refund
 from apps.sales.models import Transaction
 
 class ExchangeSerializer(serializers.ModelSerializer):
-    customer_name = serializers.CharField(
-        source="customer.full_name",
-        read_only=True,
-    )
-    customer_phone = serializers.CharField(
-        source="customer.phone_number",
-        read_only=True,
-    )
-
-    original_receipt_id = serializers.CharField(
-        source="original_transaction.receipt_id",
-        read_only=True,
-    )
-
-    old_device_imei_1 = serializers.CharField(
-        source="old_device.imei_1",
-        read_only=True,
-    )
-    old_device_serial_number = serializers.CharField(
-        source="old_device.serial_number",
+    trade_in_product_name = serializers.CharField(
+        source="trade_in_product.name",
         read_only=True,
     )
 
@@ -36,6 +18,10 @@ class ExchangeSerializer(serializers.ModelSerializer):
     )
     new_device_serial_number = serializers.CharField(
         source="new_device.serial_number",
+        read_only=True,
+    )
+    new_device_product_name = serializers.CharField(
+        source="new_device.product.name",
         read_only=True,
     )
 
@@ -54,19 +40,20 @@ class ExchangeSerializer(serializers.ModelSerializer):
             "customer_name",
             "customer_phone",
 
-            "original_transaction",
-            "original_receipt_id",
-
-            "old_device",
-            "old_device_imei_1",
-            "old_device_serial_number",
+            "trade_in_product",
+            "trade_in_product_name",
+            "trade_in_imei",
+            "trade_in_condition",
+            "trade_in_battery_health",
+            "trade_in_device_item",
 
             "new_device",
+            "new_device_product_name",
             "new_device_imei_1",
             "new_device_serial_number",
 
             # Financial information
-            "old_device_value",
+            "trade_in_value",
             "new_device_price",
             "difference_amount",
             "financial_direction",
@@ -129,16 +116,21 @@ class ExchangeSerializer(serializers.ModelSerializer):
 
 
 class CreateExchangeSerializer(serializers.Serializer):
-    customer_id = serializers.IntegerField()
-    original_transaction_id = serializers.IntegerField()
-    old_device_id = serializers.IntegerField()
-    new_device_id = serializers.IntegerField()
+    customer_id = serializers.IntegerField(required=False, allow_null=True)
+    customer_name = serializers.CharField(max_length=100)
+    customer_phone = serializers.CharField(max_length=50)
 
-    old_device_value = serializers.DecimalField(
+    trade_in_product_id = serializers.IntegerField()
+    trade_in_imei = serializers.CharField(max_length=100)
+    trade_in_condition = serializers.CharField(max_length=20)
+    trade_in_battery_health = serializers.IntegerField(required=False, allow_null=True)
+    trade_in_value = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
         min_value=0,
     )
+    
+    new_device_id = serializers.IntegerField()
 
     new_device_price = serializers.DecimalField(
         max_digits=12,
