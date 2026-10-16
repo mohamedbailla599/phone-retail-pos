@@ -202,7 +202,8 @@ EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Bighrissen Phone <noreply@bighrissenphone.local>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Bighrissen Phone <bighrissen9@gmail.com>")
+OWNER_EMAIL = env("OWNER_EMAIL", default="mohamedbailla599@gmail.com")
 
 if EMAIL_HOST_USER:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
