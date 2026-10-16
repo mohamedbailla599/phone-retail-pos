@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { inventoryApi } from '../api/inventory';
 import type { DeviceItem } from '../api/inventory';
-import { Search, Plus, Loader2, Smartphone, Printer } from 'lucide-react';
+import { 
+  Search, Plus, Loader2, Smartphone, Printer, 
+  MoreVertical, BookmarkCheck, RefreshCw, Pencil, Trash2 
+} from 'lucide-react';
 import ReceiveDeviceModal from '../components/inventory/ReceiveDeviceModal';
 import ChangeDeviceStatusModal from '../components/inventory/ChangeDeviceStatusModal';
 import CreateReservationModal from '../components/reservations/CreateReservationModal';
 import DeviceStickerModal, { type DeviceStickerData } from '../components/inventory/DeviceStickerModal';
+import EditDeviceModal from '../components/inventory/EditDeviceModal';
+import DeleteDeviceModal from '../components/inventory/DeleteDeviceModal';
 import { Select } from '../components/ui/Select';
 import { useDebounce } from '../hooks/useDebounce';
 import Sidebar from '../components/layout/Sidebar';
@@ -26,6 +31,16 @@ export default function DevicesPage() {
   const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
   const [deviceToPrint, setDeviceToPrint] = useState<DeviceStickerData | null>(null);
   const [isStickerModalOpen, setIsStickerModalOpen] = useState(false);
+  
+  // Edit & Delete CRUD modals
+  const [deviceToEdit, setDeviceToEdit] = useState<DeviceItem | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [deviceToDelete, setDeviceToDelete] = useState<DeviceItem | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  // Dropdown menu state
+  const [dropdownOpenId, setDropdownOpenId] = useState<number | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
   const loadDevices = useCallback(async () => {
     setLoading(true);
@@ -48,6 +63,44 @@ export default function DevicesPage() {
   useEffect(() => {
     loadDevices();
   }, [loadDevices]);
+
+  // Close dropdown on scroll or window resize
+  useEffect(() => {
+    const handleScrollOrResize = () => {
+      if (dropdownOpenId !== null) {
+        setDropdownOpenId(null);
+        setDropdownPos(null);
+      }
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [dropdownOpenId]);
+
+  const handleToggleDropdown = (e: React.MouseEvent<HTMLButtonElement>, deviceId: number) => {
+    e.stopPropagation();
+    if (dropdownOpenId === deviceId) {
+      setDropdownOpenId(null);
+      setDropdownPos(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const menuWidth = 220;
+    const menuEstimatedHeight = 230;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpwards = spaceBelow < menuEstimatedHeight;
+
+    setDropdownPos({
+      top: openUpwards ? Math.max(10, rect.top - menuEstimatedHeight) : rect.bottom + 6,
+      left: Math.max(16, rect.right - menuWidth),
+    });
+    setDropdownOpenId(deviceId);
+  };
+
+  const activeDropdownDevice = devices.find((d) => d.id === dropdownOpenId) || null;
 
   return (
     <div className="h-screen flex bg-bg overflow-hidden w-full print:hidden">
@@ -191,45 +244,16 @@ export default function DevicesPage() {
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button
-                        onClick={() => {
-                          setDeviceToPrint({
-                            id: device.id,
-                            product: device.product,
-                            imei_1: device.imei_1,
-                            imei_2: device.imei_2,
-                            serial_number: device.serial_number,
-                            battery_health: device.battery_health,
-                            condition: device.condition,
-                            default_selling_price: device.default_selling_price,
-                          });
-                          setIsStickerModalOpen(true);
-                        }}
-                        className="mr-2 text-cyan-400 hover:text-cyan-300 text-xs font-semibold px-2.5 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                        title="Imprimer l'étiquette code-barres / Print phone sticker"
+                        type="button"
+                        onClick={(e) => handleToggleDropdown(e, device.id)}
+                        className={`p-1.5 rounded-lg border transition-all inline-flex items-center justify-center cursor-pointer ${
+                          dropdownOpenId === device.id
+                            ? 'bg-gold/15 text-gold border-gold/40 shadow-sm ring-2 ring-gold/20'
+                            : 'bg-surface-alt hover:bg-surface-hover text-text-secondary hover:text-text border-border hover:border-border-focus'
+                        }`}
+                        title="Options et actions de l'appareil"
                       >
-                        <Printer className="w-3.5 h-3.5" />
-                        Étiquette
-                      </button>
-                      {device.status === 'IN_STOCK' && (
-                        <button
-                          onClick={() => {
-                            setDeviceToReserve(device);
-                            setIsReserveModalOpen(true);
-                          }}
-                          className="mr-2 text-amber-400 hover:text-amber-300 text-xs font-semibold px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors cursor-pointer"
-                          title="Réserver ce téléphone pour un client"
-                        >
-                          Réserver
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          setSelectedDevice(device);
-                          setIsStatusModalOpen(true);
-                        }}
-                        className="text-gold hover:text-gold-hover text-sm font-medium px-3 py-1 rounded bg-gold/10 hover:bg-gold/20 transition-colors cursor-pointer"
-                      >
-                        Change Status
+                        <MoreVertical className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -255,6 +279,121 @@ export default function DevicesPage() {
         </div>
       </div>
     </div>
+
+      {/* Floating Action Dropdown Menu */}
+      {dropdownOpenId && dropdownPos && activeDropdownDevice && (
+        <>
+          <div
+            className="fixed inset-0 z-[80]"
+            onClick={() => {
+              setDropdownOpenId(null);
+              setDropdownPos(null);
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: `${dropdownPos.top}px`,
+              left: `${dropdownPos.left}px`,
+            }}
+            className="z-[90] w-56 bg-surface-elevated/95 backdrop-blur-xl border border-border shadow-2xl rounded-xl p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Imprimer Étiquette */}
+            <button
+              type="button"
+              onClick={() => {
+                const d = activeDropdownDevice;
+                setDropdownOpenId(null);
+                setDropdownPos(null);
+                setDeviceToPrint({
+                  id: d.id,
+                  product: d.product,
+                  imei_1: d.imei_1,
+                  imei_2: d.imei_2,
+                  serial_number: d.serial_number,
+                  battery_health: d.battery_health,
+                  condition: d.condition,
+                  default_selling_price: d.default_selling_price,
+                });
+                setIsStickerModalOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors text-left cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+              <span>Imprimer Étiquette</span>
+            </button>
+
+            {/* Réserver l'appareil (if IN_STOCK) */}
+            {activeDropdownDevice.status === 'IN_STOCK' && (
+              <button
+                type="button"
+                onClick={() => {
+                  const d = activeDropdownDevice;
+                  setDropdownOpenId(null);
+                  setDropdownPos(null);
+                  setDeviceToReserve(d);
+                  setIsReserveModalOpen(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors text-left cursor-pointer"
+              >
+                <BookmarkCheck className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <span>Réserver l'appareil</span>
+              </button>
+            )}
+
+            {/* Changer Statut */}
+            <button
+              type="button"
+              onClick={() => {
+                const d = activeDropdownDevice;
+                setDropdownOpenId(null);
+                setDropdownPos(null);
+                setSelectedDevice(d);
+                setIsStatusModalOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 transition-colors text-left cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+              <span>Changer Statut</span>
+            </button>
+
+            <div className="h-px bg-border my-1" />
+
+            {/* Modifier l'appareil */}
+            <button
+              type="button"
+              onClick={() => {
+                const d = activeDropdownDevice;
+                setDropdownOpenId(null);
+                setDropdownPos(null);
+                setDeviceToEdit(d);
+                setIsEditModalOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors text-left cursor-pointer"
+            >
+              <Pencil className="w-4 h-4 text-blue-400 flex-shrink-0" />
+              <span>Modifier l'appareil</span>
+            </button>
+
+            {/* Supprimer l'appareil */}
+            <button
+              type="button"
+              onClick={() => {
+                const d = activeDropdownDevice;
+                setDropdownOpenId(null);
+                setDropdownPos(null);
+                setDeviceToDelete(d);
+                setIsDeleteModalOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <span>Supprimer du stock</span>
+            </button>
+          </div>
+        </>
+      )}
 
       <ReceiveDeviceModal 
         isOpen={isModalOpen} 
@@ -293,6 +432,30 @@ export default function DevicesPage() {
           setDeviceToPrint(null);
         }}
         device={deviceToPrint}
+      />
+
+      <EditDeviceModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setDeviceToEdit(null);
+        }}
+        onSuccess={() => {
+          loadDevices();
+        }}
+        device={deviceToEdit}
+      />
+
+      <DeleteDeviceModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setDeviceToDelete(null);
+        }}
+        onSuccess={() => {
+          loadDevices();
+        }}
+        device={deviceToDelete}
       />
     </div>
   );

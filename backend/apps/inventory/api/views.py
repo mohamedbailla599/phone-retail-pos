@@ -7,8 +7,10 @@ from apps.catalog.models import Product
 from apps.inventory.api.serializers import (
     DeviceItemSerializer, AccessoryStockSerializer, 
     ReceiveDeviceSerializer, ReceiveAccessorySerializer,
-    AdjustAccessoryStockSerializer, DeviceStatusChangeSerializer
+    AdjustAccessoryStockSerializer, DeviceStatusChangeSerializer,
+    DeviceItemUpdateSerializer
 )
+from apps.audit.models import AuditLog
 from apps.inventory.services.inventory import (
     receive_device, receive_accessory_stock, adjust_accessory_stock,
     reserve_device, sell_device, mark_device_damaged, mark_device_lost,
@@ -211,4 +213,137 @@ class DeviceStatusChangeView(APIView):
         except DeviceItem.DoesNotExist:
             return Response({'error': 'Device not found.'}, status=status.HTTP_400_BAD_REQUEST)
         except (DeviceNotFound, InvalidDeviceTransition, Exception) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeviceDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            device = DeviceItem.objects.select_related('product').get(pk=pk)
+            return Response(DeviceItemSerializer(device).data)
+        except DeviceItem.DoesNotExist:
+            return Response({'error': 'Appareil non trouvé.'}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, pk):
+        try:
+            device = DeviceItem.objects.select_related('product').get(pk=pk)
+            try:
+                operator = get_required_operator(request)
+            except Exception:
+                operator = getattr(request, "user", None)
+
+            serializer = DeviceItemUpdateSerializer(device, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+
+            old_data = {
+                'imei_1': device.imei_1,
+                'imei_2': device.imei_2,
+                'serial_number': device.serial_number,
+                'cost_price': str(device.cost_price),
+                'default_selling_price': str(device.default_selling_price),
+                'minimum_selling_price': str(device.minimum_selling_price),
+                'condition': device.condition,
+                'battery_health': device.battery_health,
+                'battery_capacity_mah': device.battery_capacity_mah,
+            }
+
+            updated_device = serializer.save()
+
+            changes = {}
+            for field, old_val in old_data.items():
+                new_val = getattr(updated_device, field)
+                new_val_str = str(new_val) if new_val is not None else None
+                if old_val != new_val_str:
+                    changes[field] = {'from': old_val, 'to': new_val_str}
+
+            if changes and operator:
+                try:
+                    AuditLog.objects.create(
+                        actor=operator,
+                        action=AuditLog.Action.DEVICE_UPDATED,
+                        entity_type="DeviceItem",
+                        entity_id=updated_device.id,
+                        old_values={k: v['from'] for k, v in changes.items()},
+                        new_values={k: v['to'] for k, v in changes.items()},
+                        reason=f"Mise à jour des informations de l'appareil {updated_device.product.name}",
+                    )
+                except Exception:
+                    pass
+
+            return Response(DeviceItemSerializer(updated_device).data, status=status.HTTP_200_OK)
+
+        except DeviceItem.DoesNotExist:
+            return Response({'error': 'Appareil non trouvé.'}, status=status.HTTP_404_NOT_FOUND)
+        except IntegrityError as e:
+            error_str = str(e).lower()
+            if 'imei_1' in error_str:
+                return Response({'error': "Cet IMEI 1 est déjà attribué à un autre appareil."}, status=status.HTTP_400_BAD_REQUEST)
+            if 'imei_2' in error_str:
+                return Response({'error': "Cet IMEI 2 est déjà attribué à un autre appareil."}, status=status.HTTP_400_BAD_REQUEST)
+            if 'serial_number' in error_str:
+                return Response({'error': "Ce numéro de série est déjà attribué à un autre appareil."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': "Un appareil avec ces identifiants existe déjà."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        try:
+            device = DeviceItem.objects.select_related('product').get(pk=pk)
+            try:
+                operator = get_required_operator(request)
+            except Exception:
+                operator = getattr(request, "user", None)
+
+            if device.status == DeviceItem.Status.SOLD:
+                return Response(
+                    {'error': "Impossible de supprimer un appareil vendu."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check if linked to non-cancelled transactions
+            if hasattr(device, 'transaction_items') and device.transaction_items.exclude(transaction__status="CANCELLED").exists():
+                return Response(
+                    {'error': "Impossible de supprimer cet appareil car il figure dans une vente ou transaction."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check if linked to warranty cases
+            if hasattr(device, 'warranty_cases') and device.warranty_cases.exists():
+                return Response(
+                    {'error': "Impossible de supprimer cet appareil car un dossier de garantie lui est associé."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            snapshot = {
+                "product": device.product.name,
+                "imei_1": device.imei_1,
+                "imei_2": device.imei_2,
+                "serial_number": device.serial_number,
+                "status": device.status,
+                "cost_price": str(device.cost_price),
+                "selling_price": str(device.default_selling_price),
+            }
+            device_id = device.id
+            device.delete()
+
+            if operator:
+                try:
+                    AuditLog.objects.create(
+                        actor=operator,
+                        action=AuditLog.Action.DEVICE_DELETED,
+                        entity_type="DeviceItem",
+                        entity_id=device_id,
+                        old_values=snapshot,
+                        reason=f"Suppression de l'appareil {snapshot['product']} (IMEI: {snapshot['imei_1'] or snapshot['serial_number'] or 'N/A'})",
+                    )
+                except Exception:
+                    pass
+
+            return Response({'success': True, 'message': 'Appareil supprimé du stock avec succès.'}, status=status.HTTP_200_OK)
+
+        except DeviceItem.DoesNotExist:
+            return Response({'error': 'Appareil non trouvé.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

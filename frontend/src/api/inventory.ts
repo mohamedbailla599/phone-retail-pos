@@ -62,5 +62,15 @@ export const inventoryApi = {
   changeDeviceStatus: async (data: { device_id: number; target_status: string; reason: string }) => {
     const response = await client.post<DeviceItem>('/inventory/device/status/', data);
     return response.data;
+  },
+
+  updateDevice: async (id: number, deviceData: Record<string, any>) => {
+    const { data } = await client.patch<DeviceItem>(`/inventory/devices/${id}/`, deviceData);
+    return data;
+  },
+
+  deleteDevice: async (id: number) => {
+    const { data } = await client.delete<{ success: boolean; message: string }>(`/inventory/devices/${id}/`);
+    return data;
   }
 };

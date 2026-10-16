@@ -43,6 +43,8 @@ class AuditLog(models.Model):
             "DEVICE_STATUS_CHANGED",
             "Device Status Changed",
         )
+        DEVICE_UPDATED = "DEVICE_UPDATED", "Device Updated"
+        DEVICE_DELETED = "DEVICE_DELETED", "Device Deleted"
 
         USER_CREATED = "USER_CREATED", "User Created"
         USER_UPDATED = "USER_UPDATED", "User Updated"
