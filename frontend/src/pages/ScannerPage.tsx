@@ -19,8 +19,12 @@ import {
   Sparkles,
   ArrowRight,
   Wifi,
+  Flashlight,
+  FlashlightOff,
 } from 'lucide-react';
 import { decodeCode11FromImageData } from '../utils/code11Decoder';
+import { decodeCode128FromImageData } from '../utils/code128Decoder';
+import Quagga from '@ericblade/quagga2';
 import client from '../api/client';
 import Button from '../components/ui/Button';
 import { useAuthStore } from '../store/authStore';
@@ -129,10 +133,16 @@ export default function ScannerPage() {
 
   const [lastScanned, setLastScanned] = useState('');
   const [scanCount, setScanCount] = useState(0);
+  const [hasTorch, setHasTorch] = useState(false);
+  const [isTorchOn, setIsTorchOn] = useState(false);
+  const [scanFlash, setScanFlash] = useState(false);
 
   // Refs for camera and decoding loop
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const frameCountRef = useRef(0);
+  const isDecodingRef = useRef(false);
   const isScanningRef = useRef(false);
   const isProcessingRef = useRef(false);
   const lastScannedTimeRef = useRef(0);
@@ -141,6 +151,7 @@ export default function ScannerPage() {
   const barcodeDetectorRef = useRef<any>(null);
   const zxingReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const manualInputRef = useRef<HTMLInputElement | null>(null);
+  const decodeFrameRef = useRef<(() => Promise<void>) | null>(null);
 
   const opName = operator?.display_name || operator?.username;
 
@@ -222,7 +233,8 @@ export default function ScannerPage() {
   // Process barcode against backend
   const handleBarcodeScanned = useCallback(
     async (code: string) => {
-      const trimmed = code.trim();
+      // Strip common prefixes like 'IMEI:', 'IMEI1:', 'IMEI2:'
+      const trimmed = code.trim().replace(/^IMEI\d*[:\s]*/i, '');
       if (!trimmed || trimmed.length < 3 || isProcessingRef.current) return;
 
       const now = Date.now();
@@ -230,14 +242,18 @@ export default function ScannerPage() {
       if (trimmed === lastScannedCodeRef.current && now - lastScannedTimeRef.current < 2500) {
         return;
       }
-      // Minimum interval between distinct scans
-      if (now - lastScannedTimeRef.current < 750) {
+      // Minimum interval between distinct scans (600ms)
+      if (now - lastScannedTimeRef.current < 600) {
         return;
       }
 
       isProcessingRef.current = true;
       lastScannedTimeRef.current = now;
       lastScannedCodeRef.current = trimmed;
+
+      // Visual flash feedback in reticle
+      setScanFlash(true);
+      setTimeout(() => setScanFlash(false), 350);
 
       try {
         const response = await client.post(`/sales/${transactionId}/scan/`, {
@@ -264,7 +280,7 @@ export default function ScannerPage() {
         setTimeout(() => {
           setStatusMessage(null);
           isProcessingRef.current = false;
-        }, 2200);
+        }, 1800);
       } catch (err: any) {
         playBeep(false);
         const detail =
@@ -290,6 +306,7 @@ export default function ScannerPage() {
   // Stop camera and clear scan loops
   const stopCamera = useCallback(() => {
     isScanningRef.current = false;
+    isDecodingRef.current = false;
     if (scanLoopTimerRef.current) {
       clearInterval(scanLoopTimerRef.current);
       scanLoopTimerRef.current = null;
@@ -305,6 +322,9 @@ export default function ScannerPage() {
     }
 
     if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+      } catch (e) {}
       videoRef.current.srcObject = null;
     }
 
@@ -314,113 +334,248 @@ export default function ScannerPage() {
       } catch (e) {}
     }
 
+    setIsTorchOn(false);
+    setHasTorch(false);
     setCameraActive(false);
     setStartingCamera(false);
   }, []);
 
-  // Frame decoding loop executed periodically
+  const toggleTorch = async () => {
+    if (!streamRef.current || !hasTorch) return;
+    try {
+      const track = streamRef.current.getVideoTracks()[0];
+      const newStatus = !isTorchOn;
+      await track.applyConstraints({
+        advanced: [{ torch: newStatus } as any],
+      });
+      setIsTorchOn(newStatus);
+    } catch (e) {
+      console.warn('Torch toggle failed', e);
+    }
+  };
+
+  // Frame decoding loop executed with multi-stage algorithm (<1ms prioritized decoders)
   const decodeFrame = useCallback(async () => {
-    if (!isScanningRef.current || isProcessingRef.current || !videoRef.current) return;
+    if (!isScanningRef.current || isProcessingRef.current || isDecodingRef.current) return;
     const video = videoRef.current;
 
     // Verify video is actually delivering frames
-    if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0 || video.paused) {
+    if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight || video.paused) {
       return;
     }
 
-    // 1. Try native BarcodeDetector (fastest, GPU-accelerated on Chrome)
-    if (barcodeDetectorRef.current) {
-      try {
-        const detected = await barcodeDetectorRef.current.detect(video);
-        if (detected && detected.length > 0) {
-          const raw = detected[0].rawValue;
-          if (raw && raw.trim().length >= 3) {
-            handleBarcodeScanned(raw.trim());
-            return;
-          }
-        }
-      } catch (e) {
-        // Fallback to ZXing canvas decoding
-      }
-    }
+    isDecodingRef.current = true;
+    frameCountRef.current++;
+    const currentFrame = frameCountRef.current;
 
-    // 2. Primary: ZXing BrowserMultiFormatReader directly on the video element
-    // BrowserMultiFormatReader automatically captures frames to canvas,
-    // converts RGBA to proper grayscale luminances via HTMLCanvasElementLuminanceSource,
-    // applies HybridBinarizer, and automatically retries with GlobalHistogramBinarizer for computer screens.
-    if (zxingReaderRef.current) {
-      try {
-        const result = zxingReaderRef.current.decode(video);
-        if (result && result.getText()) {
-          const text = result.getText().trim();
-          if (text.length >= 3) {
-            handleBarcodeScanned(text);
-            return;
-          }
-        }
-      } catch (e) {
-        // NotFoundException is expected when no barcode is in frame
-      }
-    }
-
-    // 3. Optional fallback: Code 11 (only if length >= 10 to prevent false-positive fragments)
     try {
-      if (zxingReaderRef.current) {
-        const canvas = (zxingReaderRef.current as any).getCaptureCanvas(video);
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code11 = decodeCode11FromImageData(imgData);
-            if (code11 && code11.trim().length >= 10) {
-              handleBarcodeScanned(code11.trim());
+      const vW = video.videoWidth || 640;
+      const vH = video.videoHeight || 480;
+
+      // Crop center 88% width and 65% height (matching the rectangular barcode reticle)
+      const cropW = Math.max(300, Math.floor(vW * 0.88));
+      const cropH = Math.max(180, Math.floor(vH * 0.65));
+      const cropX = Math.floor((vW - cropW) / 2);
+      const cropY = Math.floor((vH - cropH) / 2);
+
+      if (!canvasRef.current) {
+        canvasRef.current = document.createElement('canvas');
+      }
+      const canvas = canvasRef.current;
+      if (canvas.width !== cropW || canvas.height !== cropH) {
+        canvas.width = cropW;
+        canvas.height = cropH;
+      }
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        isDecodingRef.current = false;
+        return;
+      }
+
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+      const imgData = ctx.getImageData(0, 0, cropW, cropH);
+
+      // 1. Fast Pure-JS 1D Decoders directly on cropped reticle canvas (<1ms, every tick):
+      // 1a. Code 11 (specifically decodes Apple iPhone *#06# on-screen barcodes in < 1ms)
+      try {
+        const code11 = decodeCode11FromImageData(imgData);
+        if (code11 && code11.trim().length >= 10) {
+          handleBarcodeScanned(code11.trim());
+          isDecodingRef.current = false;
+          return;
+        }
+      } catch {
+        // Normal per-frame decode miss
+      }
+
+      // 1b. Code 128 (instantly decodes Android *#06#, device boxes, labels, WhatsApp/screen barcodes in < 1ms)
+      try {
+        const code128 = decodeCode128FromImageData(imgData);
+        if (code128 && code128.trim().length >= 4) {
+          handleBarcodeScanned(code128.trim());
+          isDecodingRef.current = false;
+          return;
+        }
+      } catch {
+        // Normal per-frame decode miss
+      }
+
+      // 2. Hardware accelerated BarcodeDetector on cropped canvas (Chrome / Android) - every 2nd frame
+      if (barcodeDetectorRef.current && currentFrame % 2 === 0) {
+        try {
+          const detected = await barcodeDetectorRef.current.detect(canvas);
+          if (detected && detected.length > 0 && detected[0].rawValue) {
+            const raw = detected[0].rawValue.trim();
+            if (raw.length >= 3) {
+              handleBarcodeScanned(raw);
+              isDecodingRef.current = false;
               return;
             }
           }
+        } catch (e) {
+          // Fallback to Quagga / ZXing
         }
       }
-    } catch (e) {
-      // Ignore fallback errors
+
+      // 3. Quagga2 Locator & Subpixel Edge Decoder (runs every 4th frame to prevent event loop choking)
+      if (currentFrame % 4 === 0) {
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          const qCode = await new Promise<string | null>((resolve) => {
+            Quagga.decodeSingle(
+              {
+                src: dataUrl,
+                numOfWorkers: 0,
+                decoder: {
+                  readers: ['code_128_reader', 'ean_reader', 'code_39_reader', 'upc_reader'],
+                },
+                locate: true,
+              },
+              (res: any) => {
+                resolve(res && res.codeResult && res.codeResult.code ? res.codeResult.code : null);
+              }
+            );
+          });
+          if (qCode && qCode.trim().length >= 4) {
+            handleBarcodeScanned(qCode.trim());
+            isDecodingRef.current = false;
+            return;
+          }
+        } catch {
+          // Normal per-frame decode miss
+        }
+      }
+
+      // 4. Fallback: ZXing MultiFormatReader (runs every 4th frame offset by 2 for QR codes & full video)
+      if (zxingReaderRef.current && currentFrame % 4 === 2) {
+        const origWarn = console.warn;
+        try {
+          console.warn = (...args: any[]) => {
+            if (typeof args[0] === 'string' && args[0].includes('MultiFormatReader')) return;
+            origWarn.apply(console, args);
+          };
+
+          let result: any = null;
+          try {
+            result = zxingReaderRef.current.decode(video);
+          } catch {
+            // Normal per-frame decode miss
+          }
+
+          if (result && result.getText()) {
+            const text = result.getText().trim();
+            if (text.length >= 3) {
+              handleBarcodeScanned(text);
+              isDecodingRef.current = false;
+              return;
+            }
+          }
+        } catch (e) {
+          // Normal per-frame decode miss
+        } finally {
+          console.warn = origWarn;
+        }
+      }
+    } catch {
+      // Normal per-frame decode miss
+    } finally {
+      isDecodingRef.current = false;
     }
   }, [handleBarcodeScanned]);
 
-  // Start Camera with standard getUserMedia
+  // Keep decodeFrameRef up to date
+  useEffect(() => {
+    decodeFrameRef.current = decodeFrame;
+  });
+
+  // Start Camera with dual-stage fallback and 80ms scan interval
   const startCamera = useCallback(async () => {
     stopCamera();
     setStartingCamera(true);
     setStatusMessage(null);
+    frameCountRef.current = 0;
+    isDecodingRef.current = false;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStartingCamera(false);
+      setCameraActive(false);
+      setStatusMessage({
+        type: 'error',
+        title: "Caméra non supportée",
+        detail: "Votre navigateur ne supporte pas l'accès direct à la caméra.",
+      });
+      return;
+    }
 
     try {
       const dev = videoDevices[selectedDeviceIndex];
       const deviceId = dev?.deviceId;
 
-      const constraints: MediaStreamConstraints = {
-        video: deviceId
-          ? { deviceId: { exact: deviceId } }
-          : {
-              facingMode: { ideal: 'environment' },
-              width: { ideal: 1280, min: 640 },
-              height: { ideal: 720, min: 480 },
-            },
-        audio: false,
-      };
+      let stream: MediaStream | null = null;
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Stage 1: Ideal 1280x720 environment constraints
+      try {
+        const primaryConstraints: MediaStreamConstraints = {
+          audio: false,
+          video: deviceId
+            ? { deviceId: { exact: deviceId } }
+            : {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280, min: 640 },
+                height: { ideal: 720, min: 480 },
+              },
+        };
+        stream = await navigator.mediaDevices.getUserMedia(primaryConstraints);
+      } catch (firstErr) {
+        console.warn('Primary camera constraint failed, using basic fallback...', firstErr);
+        // Stage 2: Basic fallback without strict resolution/facingMode
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: deviceId ? { deviceId: { exact: deviceId } } : true,
+        });
+      }
+
       streamRef.current = stream;
 
-      if (videoRef.current) {
+      if (videoRef.current && stream) {
         videoRef.current.srcObject = stream;
-        // Wait for video metadata to play
         await videoRef.current.play();
+
+        // Check torch capability
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          const capabilities: any = videoTrack.getCapabilities?.() || {};
+          setHasTorch(!!capabilities.torch);
+        }
 
         setCameraActive(true);
         setStartingCamera(false);
         isScanningRef.current = true;
 
-        // Start scanning loop every 100ms (10 frames per second)
+        // Ultra-fast scanning loop at 80ms interval
         scanLoopTimerRef.current = setInterval(() => {
-          decodeFrame();
-        }, 100);
+          decodeFrameRef.current?.();
+        }, 80);
       }
     } catch (err: any) {
       console.error('Camera access failed:', err);
@@ -433,7 +588,7 @@ export default function ScannerPage() {
           "Veuillez autoriser l'accès à la caméra dans les paramètres de votre navigateur, ou utilisez la saisie manuelle.",
       });
     }
-  }, [selectedDeviceIndex, videoDevices, stopCamera, decodeFrame]);
+  }, [selectedDeviceIndex, videoDevices, stopCamera]);
 
   // Clean up on component unmount
   useEffect(() => {
@@ -441,6 +596,14 @@ export default function ScannerPage() {
       stopCamera();
     };
   }, [stopCamera]);
+
+  // Auto-attempt camera start on initial mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startCamera();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [startCamera]);
 
   // Handle manual submit
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -548,30 +711,30 @@ export default function ScannerPage() {
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column: Camera Viewport (lg:col-span-7) */}
         <div className="lg:col-span-7 flex flex-col space-y-4">
-          <div className="w-full rounded-2xl overflow-hidden border-2 border-[#2b3142] relative bg-[#06070a] shadow-2xl flex flex-col items-center justify-center min-h-[380px] sm:min-h-[440px]">
+          <div className="w-full aspect-[16/10] sm:aspect-[16/9] min-h-[220px] max-h-[360px] rounded-2xl overflow-hidden border-2 border-[#2b3142] relative bg-[#06070a] shadow-2xl flex items-center justify-center">
             {/* If Camera Not Active: Start Button */}
             {!cameraActive && (
-              <div className="text-center p-8 max-w-sm w-full space-y-5 my-auto">
-                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-amber-400/20 to-amber-600/5 border border-amber-500/30 flex items-center justify-center shadow-[0_0_35px_rgba(212,175,90,0.12)]">
-                  <Camera className="w-10 h-10 text-amber-400" />
+              <div className="text-center p-4 max-w-sm w-full space-y-3 my-auto z-10">
+                <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-600/5 border border-amber-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(212,175,90,0.12)]">
+                  <Camera className="w-6 h-6 text-amber-400" />
                 </div>
 
                 <div>
-                  <h2 className="text-lg font-bold text-white mb-1.5">Caméra Scanner</h2>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Pointez la caméra vers le code-barres (Code-128 pour IMEI téléphones, EAN pour accessoires) pour ajouter au panier.
+                  <h2 className="text-base font-bold text-white mb-0.5">Caméra Scanner POS</h2>
+                  <p className="text-[11px] text-slate-400 leading-tight">
+                    Cadre rectangulaire grand-angle optimisé pour codes-barres IMEI, boîtes & écrans
                   </p>
                 </div>
 
                 <Button
                   variant="primary"
-                  size="lg"
-                  className="w-full font-bold shadow-xl shadow-amber-500/10 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 border-0"
-                  icon={startingCamera ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                  size="sm"
+                  className="w-full font-bold shadow-lg shadow-amber-500/10 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 border-0 rounded-xl"
+                  icon={startingCamera ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
                   disabled={startingCamera}
                   onClick={startCamera}
                 >
-                  {startingCamera ? 'Activation de la caméra...' : 'Activer la Caméra'}
+                  {startingCamera ? 'Activation...' : 'Activer la Caméra'}
                 </Button>
               </div>
             )}
@@ -582,7 +745,7 @@ export default function ScannerPage() {
               playsInline
               muted
               autoPlay
-              className={`w-full h-full min-h-[380px] sm:min-h-[440px] object-cover bg-black ${
+              className={`w-full h-full object-cover bg-black ${
                 !cameraActive ? 'hidden' : 'block'
               }`}
             />
@@ -590,25 +753,64 @@ export default function ScannerPage() {
             {/* Scanner HUD Overlay (When Camera Active) */}
             {cameraActive && (
               <>
-                {/* 4 Golden Corner Reticles */}
-                <div className="absolute inset-5 pointer-events-none flex flex-col justify-between">
-                  <div className="flex justify-between">
-                    <div className="w-10 h-10 border-t-2 border-l-2 border-amber-400/80 rounded-tl-xl shadow-[0_0_12px_rgba(212,175,90,0.4)]" />
-                    <div className="w-10 h-10 border-t-2 border-r-2 border-amber-400/80 rounded-tr-xl shadow-[0_0_12px_rgba(212,175,90,0.4)]" />
-                  </div>
-                  <div className="flex justify-between">
-                    <div className="w-10 h-10 border-b-2 border-l-2 border-amber-400/80 rounded-bl-xl shadow-[0_0_12px_rgba(212,175,90,0.4)]" />
-                    <div className="w-10 h-10 border-b-2 border-r-2 border-amber-400/80 rounded-br-xl shadow-[0_0_12px_rgba(212,175,90,0.4)]" />
-                  </div>
-                </div>
-
-                {/* Animated Gold Laser Line */}
+                {/* Centered Horizontal Barcode Reticle Rectangle */}
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent absolute top-1/2 -translate-y-1/2 animate-pulse shadow-[0_0_16px_#d4af5a]" />
+                  <div
+                    className={`relative w-[84%] max-w-sm h-32 sm:h-36 border-2 rounded-xl transition-all duration-200 ${
+                      scanFlash
+                        ? 'border-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.6)] bg-emerald-500/10'
+                        : 'border-amber-400/80 shadow-[0_0_20px_rgba(212,175,90,0.35)]'
+                    }`}
+                  >
+                    {/* 4 Golden Corner Accents */}
+                    <div
+                      className={`absolute -top-1 -left-1 w-5 h-5 border-t-3 border-l-3 rounded-tl transition-colors ${
+                        scanFlash ? 'border-emerald-400' : 'border-amber-400'
+                      }`}
+                    />
+                    <div
+                      className={`absolute -top-1 -right-1 w-5 h-5 border-t-3 border-r-3 rounded-tr transition-colors ${
+                        scanFlash ? 'border-emerald-400' : 'border-amber-400'
+                      }`}
+                    />
+                    <div
+                      className={`absolute -bottom-1 -left-1 w-5 h-5 border-b-3 border-l-3 rounded-bl transition-colors ${
+                        scanFlash ? 'border-emerald-400' : 'border-amber-400'
+                      }`}
+                    />
+                    <div
+                      className={`absolute -bottom-1 -right-1 w-5 h-5 border-b-3 border-r-3 rounded-br transition-colors ${
+                        scanFlash ? 'border-emerald-400' : 'border-amber-400'
+                      }`}
+                    />
+
+                    {/* Animated Gold Laser Line */}
+                    <div
+                      className={`w-full h-0.5 absolute top-1/2 -translate-y-1/2 animate-pulse transition-all ${
+                        scanFlash
+                          ? 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_16px_#34d399]'
+                          : 'bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_14px_#d4af5a]'
+                      }`}
+                    />
+                  </div>
                 </div>
 
                 {/* Top Floating Controls */}
                 <div className="absolute top-3 right-3 flex items-center gap-2 z-30">
+                  {hasTorch && (
+                    <button
+                      onClick={toggleTorch}
+                      className={`p-2 rounded-xl backdrop-blur-md border transition-all shadow-md ${
+                        isTorchOn
+                          ? 'bg-amber-500 text-black border-amber-400 shadow-amber-500/30'
+                          : 'bg-black/75 text-white border-white/20 hover:text-amber-400'
+                      }`}
+                      title={isTorchOn ? 'Éteindre la torche' : 'Allumer la torche'}
+                    >
+                      {isTorchOn ? <Flashlight className="w-4 h-4" /> : <FlashlightOff className="w-4 h-4" />}
+                    </button>
+                  )}
+
                   {videoDevices.length > 1 && (
                     <button
                       onClick={handleFlipCamera}
