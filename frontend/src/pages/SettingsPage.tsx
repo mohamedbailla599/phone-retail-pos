@@ -31,19 +31,39 @@ import {
   Palette,
   Sparkles,
   Check,
+  Bell,
+  Mail,
+  Send,
+  Clock,
+  RefreshCw,
+  Smartphone,
+  Package,
+  DollarSign,
+  Calendar,
 } from 'lucide-react';
 import { useThemeStore } from '../store/themeStore';
+import { notificationsApi } from '../api/notifications';
+import { useNotificationStore } from '../store/notificationStore';
 
 export default function SettingsPage() {
   const { operator: currentOperator } = useAuthStore();
   const { fetchSettings, updateSettings } = useSettingsStore();
   const { theme, resolvedTheme, setTheme } = useThemeStore();
+  const { scanNow, unreadCount } = useNotificationStore();
 
-  const [activeTab, setActiveTab] = useState<'store' | 'appearance' | 'operators' | 'warranties'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'appearance' | 'operators' | 'warranties' | 'notifications'>('store');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Digest & Notification State
+  const [isScanningAlerts, setIsScanningAlerts] = useState(false);
+  const [isSendingDigest, setIsSendingDigest] = useState(false);
+  const [digestStatusMessage, setDigestStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [digestPreview, setDigestPreview] = useState<any>(null);
 
   // Form State for Store Settings
   const [formData, setFormData] = useState<Partial<StoreSettings>>({
@@ -53,6 +73,8 @@ export default function SettingsPage() {
     currency: 'MAD',
     receipt_prefix: 'BP',
     receipt_footer_message: '',
+    owner_email: '',
+    daily_digest_enabled: true,
     default_device_warranty_months: 3,
     default_accessory_warranty_months: 1,
     default_reservation_months: 1,
@@ -102,6 +124,8 @@ export default function SettingsPage() {
           currency: fetchedSettings.currency || 'MAD',
           receipt_prefix: fetchedSettings.receipt_prefix || 'BP',
           receipt_footer_message: fetchedSettings.receipt_footer_message || '',
+          owner_email: fetchedSettings.owner_email || '',
+          daily_digest_enabled: fetchedSettings.daily_digest_enabled ?? true,
           default_device_warranty_months: fetchedSettings.default_device_warranty_months ?? 3,
           default_accessory_warranty_months: fetchedSettings.default_accessory_warranty_months ?? 1,
           default_reservation_months: fetchedSettings.default_reservation_months ?? 1,
@@ -132,6 +156,8 @@ export default function SettingsPage() {
         currency: updated.currency,
         receipt_prefix: updated.receipt_prefix,
         receipt_footer_message: updated.receipt_footer_message,
+        owner_email: updated.owner_email || '',
+        daily_digest_enabled: updated.daily_digest_enabled ?? true,
         default_device_warranty_months: updated.default_device_warranty_months,
         default_accessory_warranty_months: updated.default_accessory_warranty_months,
         default_reservation_months: updated.default_reservation_months,
@@ -142,6 +168,62 @@ export default function SettingsPage() {
       setErrorMessage(err.response?.data?.detail || 'Erreur lors de la mise à jour des paramètres.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleScanAlerts = async () => {
+    setIsScanningAlerts(true);
+    try {
+      await scanNow();
+      setSuccessMessage('Scan des alertes effectué avec succès ! Le compteur et la cloche sont à jour.');
+      setTimeout(() => setSuccessMessage(null), 3500);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Erreur lors du scan.');
+    } finally {
+      setIsScanningAlerts(false);
+    }
+  };
+
+  const handleSendTestDigest = async () => {
+    setIsSendingDigest(true);
+    setDigestStatusMessage(null);
+    try {
+      const res = await notificationsApi.sendDigest({
+        email: formData.owner_email || undefined,
+      });
+      if (res.status === 'success') {
+        setDigestStatusMessage({
+          type: 'success',
+          text: `Récapitulatif généré et expédié à "${res.recipient}" avec succès ! (Si aucun serveur SMTP externe n'est configuré, le récapitulatif a été affiché dans le terminal de l'application).`,
+        });
+      } else {
+        setDigestStatusMessage({
+          type: 'error',
+          text: `Erreur d'envoi : ${res.error || 'Veuillez vérifier la configuration email.'}`,
+        });
+      }
+    } catch (err: any) {
+      setDigestStatusMessage({
+        type: 'error',
+        text: err.response?.data?.error || err.message || "Erreur lors de l'envoi du récapitulatif.",
+      });
+    } finally {
+      setIsSendingDigest(false);
+    }
+  };
+
+  const handleOpenPreview = async () => {
+    setIsLoadingPreview(true);
+    setIsPreviewOpen(true);
+    try {
+      const res = await notificationsApi.sendDigest({ preview_only: true });
+      if (res.status === 'success') {
+        setDigestPreview(res.preview);
+      }
+    } catch (err: any) {
+      console.error('Failed to load digest preview', err);
+    } finally {
+      setIsLoadingPreview(false);
     }
   };
 
@@ -421,6 +503,23 @@ export default function SettingsPage() {
             >
               <ShieldCheck className="w-4 h-4" />
               <span>Garanties & Délais</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'notifications'
+                  ? 'bg-gold/15 text-gold border border-gold-border shadow-sm'
+                  : 'text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent'
+              }`}
+            >
+              <Bell className="w-4 h-4" />
+              <span>Notifications & Rapport 23h00</span>
+              {unreadCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-black">
+                  {unreadCount}
+                </span>
+              )}
             </button>
           </div>
 
@@ -1143,6 +1242,250 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+
+          {/* Tab 5: Notifications & Rapport 23h00 */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-6">
+              {/* Status Header Banner */}
+              <div className="p-6 rounded-2xl bg-surface border border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gold/10 border border-gold-border flex items-center justify-center text-gold shadow-lg shadow-gold/5 flex-shrink-0">
+                    <Bell className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-base font-bold text-white">Système d'Alertes & Bilan Quotidien 23h00</h2>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Surveillance Active
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-muted mt-1 max-w-2xl">
+                      Détection proactive des stocks critiques (téléphones &le; 1, accessoires sous seuil), dépassements de crédit client, réservations expirées et envoi du bilan financier journalier à 23h00.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    variant="secondary"
+                    onClick={handleScanAlerts}
+                    loading={isScanningAlerts}
+                    icon={<RefreshCw className="w-4 h-4" />}
+                  >
+                    Scanner les alertes maintenant
+                  </Button>
+                </div>
+              </div>
+
+              {/* Status Feedback Message */}
+              {digestStatusMessage && (
+                <div
+                  className={`p-4 rounded-xl text-xs flex items-center gap-3 animate-[fadeIn_150ms_ease-out] ${
+                    digestStatusMessage.type === 'success'
+                      ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300'
+                      : 'bg-red-500/10 border border-red-500/20 text-red-300'
+                  }`}
+                >
+                  {digestStatusMessage.type === 'success' ? (
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-400" />
+                  )}
+                  <span className="leading-relaxed">{digestStatusMessage.text}</span>
+                </div>
+              )}
+
+              {/* Grid 2 Columns: Email Settings & Actions */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Card 1: Configuration de l'Email et du Rapport 23h00 */}
+                <div className="p-6 rounded-2xl bg-surface border border-border space-y-5">
+                  <div className="flex items-center gap-2 pb-3 border-b border-border">
+                    <Mail className="w-4 h-4 text-gold" />
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                      Destinataire du Rapport Quotidien
+                    </h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Input
+                        label="Adresse Email du Propriétaire / Gérant"
+                        type="email"
+                        icon={<Mail className="w-4 h-4" />}
+                        value={formData.owner_email || ''}
+                        onChange={(e) => setFormData({ ...formData, owner_email: e.target.value })}
+                        placeholder="ex: proprietaire@bighrissenphone.com"
+                      />
+                      <p className="text-[11px] text-text-muted mt-1.5">
+                        Cette adresse recevra automatiquement le récapitulatif complet des ventes, règlements et alertes de stock chaque soir.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-surface-elevated border border-border flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="daily_digest_toggle"
+                        checked={formData.daily_digest_enabled ?? true}
+                        onChange={(e) => setFormData({ ...formData, daily_digest_enabled: e.target.checked })}
+                        className="mt-1 w-4 h-4 rounded text-gold focus:ring-gold border-border bg-surface cursor-pointer"
+                      />
+                      <label htmlFor="daily_digest_toggle" className="text-xs cursor-pointer select-none space-y-1">
+                        <span className="font-semibold text-white block">
+                          Activer l'envoi automatique chaque soir à 23h00
+                        </span>
+                        <span className="text-text-muted block text-[11px]">
+                          Déclencheur d'arrière-plan calé sur le fuseau horaire <strong>Africa/Casablanca (GMT+1)</strong>.
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-gold/5 border border-gold-border/30 text-xs text-text-secondary flex items-start gap-3">
+                      <Clock className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
+                      <div className="space-y-1 text-[11px]">
+                        <p className="font-semibold text-gold">Fonctionnement en environnement local</p>
+                        <p className="text-text-muted leading-relaxed">
+                          Si vos identifiants SMTP (Gmail, Brevo, etc.) sont configurés dans les variables d'environnement, les emails partent directement dans votre boîte de réception. Sans SMTP configuré, le récapitulatif est généré et affiché automatiquement dans le terminal local sans interruption.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <Button
+                      variant="primary"
+                      onClick={handleSaveSettings}
+                      loading={isSaving}
+                      icon={<Save className="w-4 h-4" />}
+                    >
+                      Enregistrer les Préférences
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Card 2: Tests Immédiats & Aperçu */}
+                <div className="p-6 rounded-2xl bg-surface border border-border space-y-5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 pb-3 border-b border-border">
+                      <Send className="w-4 h-4 text-gold" />
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                        Déclenchement Manuel & Prévisualisation
+                      </h3>
+                    </div>
+
+                    <p className="text-xs text-text-muted mt-3 mb-4 leading-relaxed">
+                      Testez immédiatement l'envoi d'un récapitulatif sans attendre 23h00 ou prévisualisez les chiffres consolidés du jour directement dans une fenêtre modale.
+                    </p>
+
+                    <div className="space-y-3">
+                      <div className="p-4 rounded-xl bg-surface-elevated border border-border flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-white">Tester l'envoi du récapitulatif</p>
+                          <p className="text-[11px] text-text-muted">
+                            Expédie le rapport à {formData.owner_email || 'l\'adresse par défaut'}.
+                          </p>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          onClick={handleSendTestDigest}
+                          loading={isSendingDigest}
+                          icon={<Send className="w-4 h-4" />}
+                        >
+                          Envoyer le test
+                        </Button>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-surface-elevated border border-border flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-white">Aperçu du Bilan en direct</p>
+                          <p className="text-[11px] text-text-muted">
+                            Affiche les ventes, la caisse, les dettes et le stock sans envoyer d'email.
+                          </p>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          onClick={handleOpenPreview}
+                          loading={isLoadingPreview}
+                          icon={<Eye className="w-4 h-4" />}
+                        >
+                          Voir l'aperçu
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-surface-elevated/50 border border-border text-[11px] text-text-muted flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-gold flex-shrink-0" />
+                    <span>La cloche 🔔 en haut de la barre latérale affiche vos alertes en temps réel à tout moment.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Rules & Triggers Cards */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-gold" />
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Règles de Détection & Déclencheurs Automatiques
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-bold text-white">Stock Téléphones</span>
+                    </div>
+                    <p className="text-[11px] text-text-muted leading-relaxed">
+                      Alerte automatique dès qu'un modèle n'a plus qu'<strong>un seul exemplaire</strong> ou <strong>0 unité</strong> en inventaire.
+                    </p>
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      Critique &le; 1 unité
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-bold text-white">Accessoires</span>
+                    </div>
+                    <p className="text-[11px] text-text-muted leading-relaxed">
+                      Déclenché dès que la quantité restante d'un accessoire est <strong>inférieure ou égale</strong> à son seuil de réapprovisionnement.
+                    </p>
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      &le; Seuil d'alerte article
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-red-400" />
+                      <span className="text-xs font-bold text-white">Dettes & Crédits</span>
+                    </div>
+                    <p className="text-[11px] text-text-muted leading-relaxed">
+                      Notification immédiate pour tout client ayant une <strong>dette active impayée</strong> ou dépassant son plafond autorisé.
+                    </p>
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
+                      Solde débiteur actif
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs font-bold text-white">Réservations</span>
+                    </div>
+                    <p className="text-[11px] text-text-muted leading-relaxed">
+                      Détecte les réservations expirées pour <strong>libérer l'appareil bloqué</strong> ou expirant sous 24h ouvrées.
+                    </p>
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      Délai de validité dépassé
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -1308,6 +1651,137 @@ export default function SettingsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Aperçu du Rapport Quotidien 23h00 */}
+      <Modal
+        open={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        title="Aperçu du Rapport Quotidien (Bilan de 23h00)"
+      >
+        <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+          {isLoadingPreview ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-3 text-text-muted">
+              <Loader2 className="w-8 h-8 text-gold animate-spin" />
+              <span className="text-xs">Consolidation des données du jour en cours...</span>
+            </div>
+          ) : digestPreview ? (
+            <div className="space-y-4">
+              {/* Header Info */}
+              <div className="p-4 rounded-xl bg-surface border border-border flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-white text-sm">{digestPreview.store_name}</h4>
+                  <p className="text-xs text-text-muted">Date : {digestPreview.date_str}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-gold font-semibold">Heure d'expédition cible</span>
+                  <p className="text-sm font-bold text-white">23:00 (Casablanca)</p>
+                </div>
+              </div>
+
+              {/* KPI Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-xl bg-surface-elevated border border-border text-center">
+                  <span className="text-[10px] text-text-muted uppercase tracking-wider block">Chiffre d'Affaires</span>
+                  <span className="text-base font-bold text-gold">{digestPreview.total_revenue?.toLocaleString()} MAD</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-surface-elevated border border-border text-center">
+                  <span className="text-[10px] text-text-muted uppercase tracking-wider block">Ventes Totales</span>
+                  <span className="text-base font-bold text-white">{digestPreview.total_sales_count}</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-surface-elevated border border-border text-center">
+                  <span className="text-[10px] text-text-muted uppercase tracking-wider block">Espèces</span>
+                  <span className="text-base font-bold text-emerald-400">{digestPreview.cash_total?.toLocaleString()} MAD</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-surface-elevated border border-border text-center">
+                  <span className="text-[10px] text-text-muted uppercase tracking-wider block">Dettes Globales</span>
+                  <span className="text-base font-bold text-red-400">{digestPreview.total_outstanding_debt?.toLocaleString()} MAD</span>
+                </div>
+              </div>
+
+              {/* Stock Alerts in preview */}
+              <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+                    Téléphones en Stock Critique (Total : {digestPreview.low_device_items?.length || 0})
+                  </h5>
+                </div>
+                {digestPreview.low_device_items?.length === 0 ? (
+                  <p className="text-xs text-emerald-400">Aucun modèle en rupture critique !</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {digestPreview.low_device_items?.map((item: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-surface-elevated text-xs">
+                        <span className="text-text font-medium">{item.model_name}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          {item.stock_count} restant{item.stock_count > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Low Accessories in preview */}
+              <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <Package className="w-3.5 h-3.5 text-amber-400" />
+                    Accessoires sous le Seuil (Total : {digestPreview.low_accessory_items?.length || 0})
+                  </h5>
+                </div>
+                {digestPreview.low_accessory_items?.length === 0 ? (
+                  <p className="text-xs text-emerald-400">Tous les accessoires ont un stock suffisant.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {digestPreview.low_accessory_items?.map((item: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-surface-elevated text-xs">
+                        <span className="text-text font-medium">{item.name}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          {item.current_stock} / seuil {item.reorder_level}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Debtors in preview */}
+              <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <DollarSign className="w-3.5 h-3.5 text-red-400" />
+                    Clients avec Dettes Actives ({digestPreview.debtor_customers?.length || 0})
+                  </h5>
+                </div>
+                {digestPreview.debtor_customers?.length === 0 ? (
+                  <p className="text-xs text-emerald-400">Aucune dette impayée !</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {digestPreview.debtor_customers?.map((client: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-surface-elevated text-xs">
+                        <div>
+                          <span className="text-text font-medium block">{client.name}</span>
+                          <span className="text-[10px] text-text-muted">{client.phone}</span>
+                        </div>
+                        <span className="font-bold text-red-400">{client.debt?.toLocaleString()} MAD</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-text-muted text-center py-6">Aucune donnée disponible.</p>
+          )}
+
+          <div className="flex justify-end pt-3 border-t border-border">
+            <Button variant="secondary" onClick={() => setIsPreviewOpen(false)}>
+              Fermer l'aperçu
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

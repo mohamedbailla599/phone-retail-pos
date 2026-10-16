@@ -25,6 +25,7 @@ import { useSidebarStore } from '../../store/sidebarStore';
 import { authApi } from '../../api/auth';
 import { useState } from 'react';
 import OperatorSelectionModal from '../ui/OperatorSelectionModal';
+import NotificationBell from '../notifications/NotificationBell';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -99,6 +100,11 @@ export default function Sidebar() {
         >
           {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
+      </div>
+
+      {/* Quick Notifications Access */}
+      <div className={clsx('pb-2 pt-0.5 relative z-10', isCollapsed ? 'px-1.5 flex justify-center' : 'px-3')}>
+        <NotificationBell isCollapsed={isCollapsed} />
       </div>
 
       {/* Divider */}

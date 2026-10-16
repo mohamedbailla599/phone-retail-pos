@@ -16,6 +16,8 @@ class StoreSettingsSerializer(serializers.ModelSerializer):
             "currency",
             "receipt_prefix",
             "receipt_footer_message",
+            "owner_email",
+            "daily_digest_enabled",
             "default_device_warranty_months",
             "default_accessory_warranty_months",
             "default_reservation_months",

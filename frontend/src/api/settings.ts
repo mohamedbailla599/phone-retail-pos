@@ -8,6 +8,8 @@ export interface StoreSettings {
   currency: string;
   receipt_prefix: string;
   receipt_footer_message: string;
+  owner_email?: string;
+  daily_digest_enabled?: boolean;
   default_device_warranty_months: number;
   default_accessory_warranty_months: number;
   default_reservation_months: number;

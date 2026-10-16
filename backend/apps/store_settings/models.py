@@ -55,6 +55,17 @@ class StoreSettings(models.Model):
         default="Merci pour votre visite ! Les articles vendus sont garantis selon nos conditions générales de vente.",
     )
 
+    owner_email = models.EmailField(
+        blank=True,
+        default="",
+        help_text="Adresse email du propriétaire pour la réception du récapitulatif quotidien à 23h00.",
+    )
+
+    daily_digest_enabled = models.BooleanField(
+        default=True,
+        help_text="Activer l'envoi automatique du récapitulatif des ventes, stock et dettes chaque soir à 23h00.",
+    )
+
     updated_by = models.ForeignKey(
         "users.User",
         on_delete=models.PROTECT,

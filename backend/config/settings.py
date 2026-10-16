@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.store_settings",
     "apps.printing",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -194,3 +195,16 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
 }
+
+# Email Configuration (SMTP with automatic Console fallback when credentials are not configured)
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Bighrissen Phone <noreply@bighrissenphone.local>")
+
+if EMAIL_HOST_USER:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
