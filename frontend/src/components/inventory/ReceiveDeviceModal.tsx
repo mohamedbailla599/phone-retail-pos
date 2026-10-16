@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { inventoryApi } from '../../api/inventory';
 import { catalogApi } from '../../api/catalog';
 import type { Product, Category } from '../../api/catalog';
-import { X, Loader2, CheckCircle2, Plus } from 'lucide-react';
+import { X, Loader2, CheckCircle2, Plus, Camera, Printer } from 'lucide-react';
 import { Select } from '../ui/Select';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { cn } from '../ui/Select';
 import OperatorSelectionModal from '../ui/OperatorSelectionModal';
 import { useRequireOperator } from '../../hooks/useRequireOperator';
+import BarcodeScannerModal from '../ui/BarcodeScannerModal';
+import DeviceStickerModal, { type DeviceStickerData } from './DeviceStickerModal';
 
 interface Props {
   isOpen: boolean;
@@ -25,6 +27,41 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState<React.ReactNode | null>(null);
+
+  const [scannerTarget, setScannerTarget] = useState<'imei_1' | 'imei_2' | 'serial_number' | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [lastReceivedDevice, setLastReceivedDevice] = useState<DeviceStickerData | null>(null);
+  const [isStickerModalOpen, setIsStickerModalOpen] = useState(false);
+
+  const handleOpenScanner = (target: 'imei_1' | 'imei_2' | 'serial_number') => {
+    setScannerTarget(target);
+    setIsScannerOpen(true);
+  };
+
+  const handleScannedCode = (code: string) => {
+    if (!scannerTarget) return;
+    setFormData((prev) => ({
+      ...prev,
+      [scannerTarget]: code,
+    }));
+    setTouched((t) => ({ ...t, identifiers: true }));
+  };
+
+  const handleIdentifierKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    currentField: 'imei_1' | 'imei_2' | 'serial_number'
+  ) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (currentField === 'imei_1') {
+        const imei2Input = document.getElementById('receive-modal-imei-2') as HTMLInputElement;
+        imei2Input?.focus();
+      } else if (currentField === 'imei_2') {
+        const serialInput = document.getElementById('receive-modal-serial') as HTMLInputElement;
+        serialInput?.focus();
+      }
+    }
+  };
 
   const {
     isOperatorModalOpen,
@@ -82,7 +119,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
     }
   }, [isOpen, deviceType]);
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = useCallback(async (query: string) => {
     setSearching(true);
     try {
       const data = await catalogApi.getProducts({ 
@@ -92,11 +129,11 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
       });
       setProducts(data);
     } catch (err) {
-      console.error(err);
+      console.error('Error searching products:', err);
     } finally {
       setSearching(false);
     }
-  };
+  }, [deviceType]);
 
   const loadCategories = async () => {
     try {
@@ -141,6 +178,12 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
         });
         
         finalProductId = selectedProduct.id;
+      } else {
+        if (!finalProductId || isNaN(finalProductId)) {
+          setError('Veuillez sélectionner un modèle dans la liste ou cliquer sur "+ Create New Product".');
+          setLoading(false);
+          return;
+        }
       }
 
       const payload: any = {
@@ -161,27 +204,89 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
         payload.battery_capacity_mah = parseInt(formData.battery_capacity_mah);
       }
 
-      await inventoryApi.receiveDevice(payload);
-      
+      const createdDevice = await inventoryApi.receiveDevice(payload);
+
+      const stickerInfo: DeviceStickerData = {
+        id: createdDevice.id,
+        product: {
+          name: selectedProduct?.name || formData.new_product_name,
+          brand: selectedProduct?.brand || formData.new_product_brand,
+          sku: selectedProduct?.sku || formData.new_product_sku,
+          storage_gb:
+            selectedProduct?.storage_gb ??
+            (formData.new_product_storage_gb ? parseInt(formData.new_product_storage_gb) : null),
+          ram_gb:
+            selectedProduct?.ram_gb ??
+            (formData.new_product_ram_gb ? parseInt(formData.new_product_ram_gb) : null),
+        },
+        imei_1: createdDevice.imei_1,
+        imei_2: createdDevice.imei_2,
+        serial_number: createdDevice.serial_number,
+        battery_health: createdDevice.battery_health,
+        battery_capacity_mah: (createdDevice as any).battery_capacity_mah,
+        condition: createdDevice.condition,
+        default_selling_price: createdDevice.default_selling_price,
+      };
+      setLastReceivedDevice(stickerInfo);
+
       setSuccessMessage(
         <div className="flex flex-col items-center justify-center text-center py-6">
-          <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
-          <h3 className="text-xl font-bold text-text mb-2">Device received successfully.</h3>
-          <p className="text-text-secondary">{selectedProduct?.brand} {selectedProduct?.name}</p>
-          <p className="text-text-muted mt-1 text-sm">Status: IN STOCK</p>
-          <button 
+          <div className="w-14 h-14 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400 mb-3">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-bold text-text mb-1">Appareil ajouté avec succès !</h3>
+          <p className="text-text font-semibold text-base">
+            {stickerInfo.product.brand} {stickerInfo.product.name}
+          </p>
+          {stickerInfo.imei_1 && (
+            <p className="text-text-muted text-xs font-mono mt-1">IMEI: {stickerInfo.imei_1}</p>
+          )}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-green-500/10 text-green-400 text-xs font-medium border border-green-500/20 mt-2">
+            En Stock • {stickerInfo.default_selling_price ? `${parseFloat(stickerInfo.default_selling_price.toString()).toLocaleString('fr-FR')} DH` : ''}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-6 w-full max-w-md">
+            <button
+              type="button"
+              onClick={() => setIsStickerModalOpen(true)}
+              className="flex-1 min-w-[200px] py-2.5 px-4 bg-gold hover:bg-gold-bright text-black font-bold rounded-lg text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimer l'Étiquette Téléphone
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFormData((f) => ({
+                  ...f,
+                  imei_1: '',
+                  imei_2: '',
+                  serial_number: '',
+                  battery_health: '',
+                  battery_capacity_mah: '',
+                }));
+                setSuccessMessage(null);
+                setError('');
+              }}
+              className="py-2.5 px-4 bg-surface-alt hover:bg-surface-hover text-text font-semibold rounded-lg text-sm border border-border transition-colors cursor-pointer"
+            >
+              Ajouter un autre
+            </button>
+          </div>
+
+          <button
             type="button"
             onClick={() => {
               onSuccess();
               onClose();
             }}
-            className="mt-6 px-6 py-2 bg-gold text-black font-semibold rounded-lg hover:bg-gold-hover transition-colors"
+            className="mt-4 text-xs text-text-muted hover:text-text hover:underline transition-colors cursor-pointer"
           >
-            Done
+            Fermer et retourner à l'inventaire
           </button>
         </div>
       );
-      
+
       onSuccess();
     } catch (err: any) {
       if (handleOperatorRequired(err, () => {
@@ -189,7 +294,17 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
       })) {
         return;
       }
-      setError(err.response?.data?.error || 'An error occurred while receiving the device.');
+      const backendError =
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        (err.response?.data && typeof err.response.data === 'object'
+          ? Object.entries(err.response.data)
+              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+              .join(' | ')
+          : null) ||
+        err.message ||
+        'An error occurred while receiving the device.';
+      setError(backendError);
     } finally {
       setLoading(false);
     }
@@ -273,15 +388,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                     label: `${p.brand} ${p.name}`,
                     description: `SKU: ${p.sku}`
                   }))}
-                  onSearch={async (q) => {
-                    setSearching(true);
-                    try {
-                      const data = await catalogApi.getProducts({ is_device: 'true', platform: deviceType, name: q });
-                      setProducts(data);
-                    } finally {
-                      setSearching(false);
-                    }
-                  }}
+                  onSearch={handleSearch}
                   loading={searching}
                   placeholder="Search product..."
                 />
@@ -369,34 +476,82 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
 
             {/* Section 3: Identifiers */}
             <div className="space-y-4" onBlur={() => setTouched(t => ({...t, identifiers: true}))}>
-              <label className="block text-sm font-medium text-text-secondary">3. Identifiers</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-text-secondary">3. Identifiers</label>
+                <span className="text-[11px] text-text-muted flex items-center gap-1">
+                  <Camera className="w-3 h-3 text-gold" />
+                  Cliquez sur Scan pour utiliser la caméra
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-text-muted mb-1">IMEI 1</label>
-                  <input
-                    type="text"
-                    value={formData.imei_1}
-                    onChange={(e) => setFormData({ ...formData, imei_1: e.target.value })}
-                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      id="receive-modal-imei-1"
+                      type="text"
+                      placeholder="Ex: 358921098451234"
+                      value={formData.imei_1}
+                      onChange={(e) => setFormData({ ...formData, imei_1: e.target.value })}
+                      onKeyDown={(e) => handleIdentifierKeyDown(e, 'imei_1')}
+                      className="w-full h-10 pl-3 pr-14 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text font-mono focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleOpenScanner('imei_1')}
+                      title="Scanner IMEI 1 avec la caméra"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 px-2 bg-gold/15 hover:bg-gold/25 border border-gold-border/60 text-gold rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span className="text-[11px]">Scan</span>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-text-muted mb-1">IMEI 2</label>
-                  <input
-                    type="text"
-                    value={formData.imei_2}
-                    onChange={(e) => setFormData({ ...formData, imei_2: e.target.value })}
-                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      id="receive-modal-imei-2"
+                      type="text"
+                      placeholder="Ex: 358921098451235"
+                      value={formData.imei_2}
+                      onChange={(e) => setFormData({ ...formData, imei_2: e.target.value })}
+                      onKeyDown={(e) => handleIdentifierKeyDown(e, 'imei_2')}
+                      className="w-full h-10 pl-3 pr-14 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text font-mono focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleOpenScanner('imei_2')}
+                      title="Scanner IMEI 2 avec la caméra"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 px-2 bg-gold/15 hover:bg-gold/25 border border-gold-border/60 text-gold rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span className="text-[11px]">Scan</span>
+                    </button>
+                  </div>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-text-muted mb-1">Serial Number</label>
-                  <input
-                    type="text"
-                    value={formData.serial_number}
-                    onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
-                    className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      id="receive-modal-serial"
+                      type="text"
+                      placeholder="Ex: F17X89..."
+                      value={formData.serial_number}
+                      onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
+                      onKeyDown={(e) => handleIdentifierKeyDown(e, 'serial_number')}
+                      className="w-full h-10 pl-3 pr-14 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text font-mono focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleOpenScanner('serial_number')}
+                      title="Scanner Numéro de Série avec la caméra"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 px-2 bg-gold/15 hover:bg-gold/25 border border-gold-border/60 text-gold rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span className="text-[11px]">Scan</span>
+                    </button>
+                  </div>
                 </div>
               </div>
               {showIdentifierError && (
@@ -561,6 +716,29 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
         isOpen={isOperatorModalOpen}
         onClose={onOperatorModalClose}
         onSelect={onOperatorSelected}
+      />
+
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => {
+          setIsScannerOpen(false);
+          setScannerTarget(null);
+        }}
+        onScan={handleScannedCode}
+        title={
+          scannerTarget === 'imei_1'
+            ? 'Scanner IMEI 1'
+            : scannerTarget === 'imei_2'
+            ? 'Scanner IMEI 2'
+            : 'Scanner Numéro de Série'
+        }
+        expectedType={scannerTarget?.startsWith('imei') ? 'imei' : 'serial'}
+      />
+
+      <DeviceStickerModal
+        isOpen={isStickerModalOpen}
+        onClose={() => setIsStickerModalOpen(false)}
+        device={lastReceivedDevice}
       />
     </>
   );

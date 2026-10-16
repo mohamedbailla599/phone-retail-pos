@@ -38,9 +38,23 @@ export function SearchableSelect({
   
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+  const onSearchRef = useRef(onSearch);
   useEffect(() => {
-    onSearch(debouncedSearchTerm);
-  }, [debouncedSearchTerm, onSearch]);
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
+
+  const lastSearchTermRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (lastSearchTermRef.current !== debouncedSearchTerm) {
+      lastSearchTermRef.current = debouncedSearchTerm;
+      try {
+        onSearchRef.current(debouncedSearchTerm);
+      } catch (err) {
+        console.error('Search error in SearchableSelect:', err);
+      }
+    }
+  }, [debouncedSearchTerm]);
 
   const selectedOption = options.find(opt => opt.value === value);
 

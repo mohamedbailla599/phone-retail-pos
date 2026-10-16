@@ -1,11 +1,11 @@
 /**
  * Code 11 (USD-8) 1D Barcode Decoder
  *
- * Implements discrete 5-element decoding (3 bars, 2 spaces) with adaptive
- * moving-average thresholding to support real-time decoding from camera frames
- * (including screen-reflected barcodes like tec-it.com/en/Code11).
- *
- * Supports horizontal and slanted scanlines to handle tilted cameras.
+ * Implements high-performance discrete 5-element decoding with independent
+ * bar vs space thresholding and continuous adaptive tracking.
+ * Specifically engineered to instantly decode Apple iPhone *#06# on-screen barcodes
+ * even in the presence of strong OLED/Retina screen bloom, backlight glare,
+ * and arbitrary scan direction (forward and reverse).
  */
 
 const CODE11_PATTERNS: Record<string, string> = {
@@ -23,68 +23,196 @@ const CODE11_PATTERNS: Record<string, string> = {
   '00110': '*', // Start/Stop delimiter
 };
 
+// Precomputed reversed patterns for right-to-left scanline traversal
+const REV_CODE11_PATTERNS: Record<string, string> = {};
+for (const [pattern, char] of Object.entries(CODE11_PATTERNS)) {
+  REV_CODE11_PATTERNS[pattern.split('').reverse().join('')] = char;
+}
+
 interface Run {
   isBar: boolean;
   len: number;
 }
 
-function scanRunsForCode11(runs: Run[]): string | null {
-  for (let i = 0; i < runs.length - 12; i++) {
-    // Start pattern must begin on a black bar
+function decodeRuns(runs: Run[], isReverse = false): string | null {
+  const startTarget = isReverse ? '01100' : '00110';
+  const patternMap = isReverse ? REV_CODE11_PATTERNS : CODE11_PATTERNS;
+
+  for (let i = 0; i < runs.length - 15; i++) {
+    // Delimiter must begin on a bar
     if (!runs[i].isBar) continue;
 
     const elements = runs.slice(i, i + 5);
-    // Start character: narrow bar, narrow space, wide bar, wide space, narrow bar (00110)
-    const narrowEst = (elements[0].len + elements[1].len + elements[4].len) / 3;
-    if (narrowEst < 0.75) continue;
-    const threshold = narrowEst * 1.5;
 
-    const pStart = elements.map((e) => (e.len > threshold ? '1' : '0')).join('');
-    if (pStart === '00110') {
+    let narrowBarEst: number;
+    let wideBarEst: number;
+    let narrowSpaceEst: number;
+    let wideSpaceEst: number;
+
+    if (!isReverse) {
+      // 00110: bar(N) space(N) bar(W) space(W) bar(N)
+      narrowBarEst = (elements[0].len + elements[4].len) / 2;
+      wideBarEst = elements[2].len;
+      narrowSpaceEst = elements[1].len;
+      wideSpaceEst = elements[3].len;
+    } else {
+      // 01100: bar(N) space(W) bar(W) space(N) bar(N)
+      narrowBarEst = (elements[0].len + elements[4].len) / 2;
+      wideBarEst = elements[2].len;
+      narrowSpaceEst = elements[3].len;
+      wideSpaceEst = elements[1].len;
+    }
+
+    if (narrowBarEst < 0.6 || narrowSpaceEst < 0.6) continue;
+    if (wideBarEst < narrowBarEst * 1.2 || wideSpaceEst < narrowSpaceEst * 1.2) continue;
+
+    let barThresh = (narrowBarEst + wideBarEst) / 2;
+    let spaceThresh = (narrowSpaceEst + wideSpaceEst) / 2;
+
+    const pStart = [
+      elements[0].len > barThresh ? '1' : '0',
+      elements[1].len > spaceThresh ? '1' : '0',
+      elements[2].len > barThresh ? '1' : '0',
+      elements[3].len > spaceThresh ? '1' : '0',
+      elements[4].len > barThresh ? '1' : '0',
+    ].join('');
+
+    if (pStart === startTarget) {
       let curIdx = i + 5;
       let decoded = '';
-      let unit = narrowEst;
 
       while (curIdx < runs.length - 4) {
-        // Skip intercharacter narrow space
-        if (!runs[curIdx].isBar) {
+        // Skip intercharacter space(s)
+        while (curIdx < runs.length && !runs[curIdx].isBar) {
           curIdx++;
         }
         if (curIdx + 4 >= runs.length) break;
 
-        const charElements = runs.slice(curIdx, curIdx + 5);
-        const thresh = unit * 1.5;
-        const charPat = charElements.map((e) => (e.len > thresh ? '1' : '0')).join('');
+        const charEls = runs.slice(curIdx, curIdx + 5);
+        const b0 = charEls[0].len > barThresh ? '1' : '0';
+        const s1 = charEls[1].len > spaceThresh ? '1' : '0';
+        const b2 = charEls[2].len > barThresh ? '1' : '0';
+        const s3 = charEls[3].len > spaceThresh ? '1' : '0';
+        const b4 = charEls[4].len > barThresh ? '1' : '0';
+        const charPat = b0 + s1 + b2 + s3 + b4;
 
-        const matched = CODE11_PATTERNS[charPat];
+        const matched = patternMap[charPat];
         if (!matched) break;
 
-        // Reached Stop character
+        // Reached Stop delimiter
         if (matched === '*') {
-          // Require at least 10 characters to prevent false-positive matches on standard Code 128/EAN-13 barcodes
-          if (decoded.length >= 10) {
-            // Strip C and K check digits if present
-            if (decoded.length === 17) return decoded.slice(0, 15);
-            if (decoded.length === 16) return decoded.slice(0, 15);
-            return decoded;
+          const finalResult = isReverse ? decoded.split('').reverse().join('') : decoded;
+          if (finalResult.length >= 10) {
+            // Standard iPhone IMEI in Code 11 is 15 digits + 1 or 2 check digits (15-17 chars)
+            if (finalResult.length >= 15) {
+              return finalResult.slice(0, 15);
+            }
+            return finalResult;
           }
           break;
         }
 
         decoded += matched;
 
-        // Adapt narrow unit estimate based on decoded character elements
-        const narrows = charElements.filter((e) => e.len <= thresh).map((e) => e.len);
-        if (narrows.length > 0) {
-          const avgNarrow = narrows.reduce((a, b) => a + b, 0) / narrows.length;
-          unit = unit * 0.7 + avgNarrow * 0.3;
+        // Adaptive tracking: refine thresholds with newly decoded character's elements
+        const narrowBars = [charEls[0].len, charEls[2].len, charEls[4].len].filter(
+          (_, idx) => [b0, b2, b4][idx] === '0'
+        );
+        const wideBars = [charEls[0].len, charEls[2].len, charEls[4].len].filter(
+          (_, idx) => [b0, b2, b4][idx] === '1'
+        );
+        if (narrowBars.length > 0) {
+          const avg = narrowBars.reduce((a, b) => a + b, 0) / narrowBars.length;
+          narrowBarEst = narrowBarEst * 0.75 + avg * 0.25;
         }
+        if (wideBars.length > 0) {
+          const avg = wideBars.reduce((a, b) => a + b, 0) / wideBars.length;
+          wideBarEst = wideBarEst * 0.75 + avg * 0.25;
+        }
+        barThresh = (narrowBarEst + wideBarEst) / 2;
+
+        const narrowSpaces = [charEls[1].len, charEls[3].len].filter(
+          (_, idx) => [s1, s3][idx] === '0'
+        );
+        const wideSpaces = [charEls[1].len, charEls[3].len].filter(
+          (_, idx) => [s1, s3][idx] === '1'
+        );
+        if (narrowSpaces.length > 0) {
+          const avg = narrowSpaces.reduce((a, b) => a + b, 0) / narrowSpaces.length;
+          narrowSpaceEst = narrowSpaceEst * 0.75 + avg * 0.25;
+        }
+        if (wideSpaces.length > 0) {
+          const avg = wideSpaces.reduce((a, b) => a + b, 0) / wideSpaces.length;
+          wideSpaceEst = wideSpaceEst * 0.75 + avg * 0.25;
+        }
+        spaceThresh = (narrowSpaceEst + wideSpaceEst) / 2;
 
         curIdx += 5;
       }
     }
   }
   return null;
+}
+
+function extractRuns(
+  gray: Uint8Array,
+  width: number,
+  method: 'adaptive_normal' | 'adaptive_bright' | 'midpoint',
+  minG: number,
+  maxG: number,
+  invert = false
+): Run[] {
+  const runs: Run[] = [];
+  const win = Math.max(6, Math.floor(width / 28));
+  const halfWin = win >> 1;
+
+  if (method === 'midpoint') {
+    const thresh = minG + (maxG - minG) * 0.45;
+    let curIsBar = invert ? gray[0] >= thresh : gray[0] < thresh;
+    let curLen = 0;
+    for (let x = 0; x < width; x++) {
+      const isBar = invert ? gray[x] >= thresh : gray[x] < thresh;
+      if (isBar === curIsBar) {
+        curLen++;
+      } else {
+        if (curLen > 0) runs.push({ isBar: curIsBar, len: curLen });
+        curIsBar = isBar;
+        curLen = 1;
+      }
+    }
+    if (curLen > 0) runs.push({ isBar: curIsBar, len: curLen });
+    return runs;
+  }
+
+  // Adaptive moving average
+  const offset = method === 'adaptive_bright' ? 7 : 3;
+  let curSum = 0;
+  for (let k = 0; k <= Math.min(width - 1, halfWin); k++) curSum += gray[k];
+
+  const firstAvg = curSum / (halfWin + 1);
+  let curIsBar = invert ? gray[0] >= firstAvg + offset : gray[0] < firstAvg - offset;
+  let curLen = 0;
+
+  for (let x = 0; x < width; x++) {
+    const addX = Math.min(width - 1, x + halfWin);
+    const subX = x - halfWin - 1;
+    if (x > 0) {
+      curSum += gray[addX] - (subX >= 0 ? gray[subX] : 0);
+    }
+    const count = Math.min(width - 1, x + halfWin) - Math.max(0, x - halfWin) + 1;
+    const avg = curSum / count;
+    const isBar = invert ? gray[x] >= avg + offset : gray[x] < avg - offset;
+
+    if (isBar === curIsBar) {
+      curLen++;
+    } else {
+      if (curLen > 0) runs.push({ isBar: curIsBar, len: curLen });
+      curIsBar = isBar;
+      curLen = 1;
+    }
+  }
+  if (curLen > 0) runs.push({ isBar: curIsBar, len: curLen });
+  return runs;
 }
 
 function decodeScanline(
@@ -108,45 +236,30 @@ function decodeScanline(
     if (g > maxG) maxG = g;
   }
 
-  // Skip if low contrast (e.g. solid background)
-  if (maxG - minG < 22) return null;
+  // Skip low-contrast lines (empty background / no screen in view)
+  if (maxG - minG < 18) return null;
 
-  // Adaptive moving-average thresholding (handles glare and screen reflection)
-  const win = Math.max(8, Math.floor(width / 20));
-  const halfWin = win >> 1;
-  let curSum = 0;
-  for (let k = 0; k <= Math.min(width - 1, halfWin); k++) curSum += gray[k];
+  // Try binarization methods
+  const methods: ('adaptive_normal' | 'adaptive_bright' | 'midpoint')[] = [
+    'adaptive_normal',
+    'adaptive_bright',
+    'midpoint',
+  ];
 
-  const runs: Run[] = [];
-  let curIsBar = gray[0] < curSum / (halfWin + 1) - 4;
-  let curLen = 0;
+  for (const method of methods) {
+    for (const invert of [false, true]) {
+      const runs = extractRuns(gray, width, method, minG, maxG, invert);
+      if (runs.length >= 25) {
+        // 1. Try forward
+        const fwd = decodeRuns(runs, false);
+        if (fwd) return fwd;
 
-  for (let x = 0; x < width; x++) {
-    const addX = Math.min(width - 1, x + halfWin);
-    const subX = x - halfWin - 1;
-    if (x > 0) {
-      curSum += gray[addX] - (subX >= 0 ? gray[subX] : 0);
-    }
-    const count = Math.min(width - 1, x + halfWin) - Math.max(0, x - halfWin) + 1;
-    const avg = curSum / count;
-    const isBar = gray[x] < avg - 4;
-
-    if (isBar === curIsBar) {
-      curLen++;
-    } else {
-      if (curLen > 0) runs.push({ isBar: curIsBar, len: curLen });
-      curIsBar = isBar;
-      curLen = 1;
+        // 2. Try backward (phone held upside down / reverse camera scan)
+        const bwd = decodeRuns(runs.slice().reverse(), true);
+        if (bwd) return bwd;
+      }
     }
   }
-  if (curLen > 0) runs.push({ isBar: curIsBar, len: curLen });
-
-  // Try forward and backward
-  const forwardResult = scanRunsForCode11(runs);
-  if (forwardResult) return forwardResult;
-
-  const backwardResult = scanRunsForCode11(runs.slice().reverse());
-  if (backwardResult) return backwardResult;
 
   return null;
 }
@@ -154,25 +267,23 @@ function decodeScanline(
 export function decodeCode11FromImageData(imageData: ImageData): string | null {
   const { data, width, height } = imageData;
 
-  // Horizontal scanlines across middle 30% to 70%
-  const horizontalRatios = [0.35, 0.40, 0.45, 0.48, 0.50, 0.52, 0.55, 0.60, 0.65];
-  for (const ratio of horizontalRatios) {
+  // Dense horizontal scanlines across middle 18% to 82% of cropped frame
+  for (let ratio = 0.20; ratio <= 0.80; ratio += 0.025) {
     const y = Math.floor(height * ratio);
     const res = decodeScanline(data, width, height, y, y);
     if (res) return res;
   }
 
-  // Tilted scanlines (slight tilt down: +8%)
-  const tiltRatios = [0.42, 0.48, 0.54];
+  // Slanted scanlines (handles slight phone tilt +/- 6% to 10%)
+  const tiltRatios = [0.35, 0.45, 0.55, 0.65];
   for (const r of tiltRatios) {
-    const yStart = Math.floor(height * (r - 0.05));
-    const yEnd = Math.floor(height * (r + 0.05));
-    const res = decodeScanline(data, width, height, yStart, yEnd);
-    if (res) return res;
+    const yStart = Math.floor(height * (r - 0.06));
+    const yEnd = Math.floor(height * (r + 0.06));
+    const res1 = decodeScanline(data, width, height, yStart, yEnd);
+    if (res1) return res1;
 
-    // Slight tilt up: -8%
-    const resRev = decodeScanline(data, width, height, yEnd, yStart);
-    if (resRev) return resRev;
+    const res2 = decodeScanline(data, width, height, yEnd, yStart);
+    if (res2) return res2;
   }
 
   return null;

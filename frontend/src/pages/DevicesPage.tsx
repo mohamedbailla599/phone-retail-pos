@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { inventoryApi } from '../api/inventory';
 import type { DeviceItem } from '../api/inventory';
-import { Search, Plus, Loader2, Smartphone } from 'lucide-react';
+import { Search, Plus, Loader2, Smartphone, Printer } from 'lucide-react';
 import ReceiveDeviceModal from '../components/inventory/ReceiveDeviceModal';
 import ChangeDeviceStatusModal from '../components/inventory/ChangeDeviceStatusModal';
 import CreateReservationModal from '../components/reservations/CreateReservationModal';
+import DeviceStickerModal, { type DeviceStickerData } from '../components/inventory/DeviceStickerModal';
 import { Select } from '../components/ui/Select';
 import { useDebounce } from '../hooks/useDebounce';
 import Sidebar from '../components/layout/Sidebar';
@@ -23,6 +24,8 @@ export default function DevicesPage() {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [deviceToReserve, setDeviceToReserve] = useState<DeviceItem | null>(null);
   const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
+  const [deviceToPrint, setDeviceToPrint] = useState<DeviceStickerData | null>(null);
+  const [isStickerModalOpen, setIsStickerModalOpen] = useState(false);
 
   const loadDevices = useCallback(async () => {
     setLoading(true);
@@ -187,13 +190,33 @@ export default function DevicesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => {
+                          setDeviceToPrint({
+                            id: device.id,
+                            product: device.product,
+                            imei_1: device.imei_1,
+                            imei_2: device.imei_2,
+                            serial_number: device.serial_number,
+                            battery_health: device.battery_health,
+                            condition: device.condition,
+                            default_selling_price: device.default_selling_price,
+                          });
+                          setIsStickerModalOpen(true);
+                        }}
+                        className="mr-2 text-cyan-400 hover:text-cyan-300 text-xs font-semibold px-2.5 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                        title="Imprimer l'étiquette code-barres / Print phone sticker"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        Étiquette
+                      </button>
                       {device.status === 'IN_STOCK' && (
                         <button
                           onClick={() => {
                             setDeviceToReserve(device);
                             setIsReserveModalOpen(true);
                           }}
-                          className="mr-2 text-amber-400 hover:text-amber-300 text-xs font-semibold px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors"
+                          className="mr-2 text-amber-400 hover:text-amber-300 text-xs font-semibold px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors cursor-pointer"
                           title="Réserver ce téléphone pour un client"
                         >
                           Réserver
@@ -204,7 +227,7 @@ export default function DevicesPage() {
                           setSelectedDevice(device);
                           setIsStatusModalOpen(true);
                         }}
-                        className="text-gold hover:text-gold-hover text-sm font-medium px-3 py-1 rounded bg-gold/10 hover:bg-gold/20 transition-colors"
+                        className="text-gold hover:text-gold-hover text-sm font-medium px-3 py-1 rounded bg-gold/10 hover:bg-gold/20 transition-colors cursor-pointer"
                       >
                         Change Status
                       </button>
@@ -261,6 +284,15 @@ export default function DevicesPage() {
         onSuccess={() => {
           loadDevices();
         }}
+      />
+
+      <DeviceStickerModal
+        isOpen={isStickerModalOpen}
+        onClose={() => {
+          setIsStickerModalOpen(false);
+          setDeviceToPrint(null);
+        }}
+        device={deviceToPrint}
       />
     </div>
   );
