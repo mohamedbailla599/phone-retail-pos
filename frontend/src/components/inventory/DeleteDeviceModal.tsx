@@ -33,7 +33,7 @@ export default function DeleteDeviceModal({
 
   const handleDelete = () => {
     if (!device || isSold) return;
-    handleOperatorRequired(executeDelete);
+    executeDelete();
   };
 
   const executeDelete = async () => {
@@ -46,6 +46,9 @@ export default function DeleteDeviceModal({
       onSuccess();
       onClose();
     } catch (err: any) {
+      if (handleOperatorRequired(err, executeDelete)) {
+        return;
+      }
       const respData = err.response?.data;
       if (respData?.error) {
         setError(respData.error);

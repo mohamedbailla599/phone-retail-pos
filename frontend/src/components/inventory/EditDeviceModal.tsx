@@ -101,7 +101,7 @@ export default function EditDeviceModal({
       // Warning but allow, or let backend check
     }
 
-    handleOperatorRequired(executeSubmit);
+    executeSubmit();
   };
 
   const executeSubmit = async () => {
@@ -125,6 +125,9 @@ export default function EditDeviceModal({
       onSuccess();
       onClose();
     } catch (err: any) {
+      if (handleOperatorRequired(err, executeSubmit)) {
+        return;
+      }
       const respData = err.response?.data;
       if (respData) {
         if (respData.error) {
