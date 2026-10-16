@@ -174,6 +174,9 @@ def create_payment(
             "payable amount."
         )
 
+    confirmed_by = None
+    confirmed_at = None
+
     if method == Payment.Method.CASH:
         status = Payment.Status.CONFIRMED
         confirmed_by = actor
@@ -196,6 +199,7 @@ def create_payment(
 
         status = Payment.Status.CONFIRMED
         confirmed_by = actor
+        confirmed_at = timezone.now()
     elif method == Payment.Method.BANK_TRANSFER:
         from apps.users.models import User
         if actor and getattr(actor, "role", None) in [User.Role.OWNER, User.Role.CASHIER]:

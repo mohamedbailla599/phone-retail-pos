@@ -378,16 +378,42 @@ class SalePaymentView(APIView):
         amount = request.data.get("amount")
         method = request.data.get("method")
         reference = request.data.get("reference")
+        split = request.data.get("split")
         try:
             from apps.users.services.operator_context import get_required_operator
             operator = get_required_operator(request)
-            payment = create_payment(
-                sale_id=transaction_id,
-                amount=amount,
-                method=method,
-                actor=operator,
-                reference=reference
-            )
+
+            if method == "MIXED" or split:
+                from django.db import transaction as db_transaction
+                from decimal import Decimal
+                cash_val = Decimal(str(split.get("cash", 0))) if split else Decimal("0")
+                debt_val = Decimal(str(split.get("debt", 0))) if split else Decimal("0")
+
+                with db_transaction.atomic():
+                    if cash_val > 0:
+                        create_payment(
+                            sale_id=transaction_id,
+                            amount=cash_val,
+                            method=Payment.Method.CASH,
+                            actor=operator,
+                            reference=reference
+                        )
+                    if debt_val > 0:
+                        create_payment(
+                            sale_id=transaction_id,
+                            amount=debt_val,
+                            method=Payment.Method.DEBT,
+                            actor=operator,
+                            reference=reference
+                        )
+            else:
+                create_payment(
+                    sale_id=transaction_id,
+                    amount=amount,
+                    method=method,
+                    actor=operator,
+                    reference=reference
+                )
             sale = get_object_or_404(Transaction, id=transaction_id)
             return Response(serialize_transaction(sale))
         except Exception as e:

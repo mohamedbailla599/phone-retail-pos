@@ -303,12 +303,10 @@ export default function POSPage() {
           const cashNum = parseFloat(splitDetails.cash || '0');
           const debtNum = parseFloat(splitDetails.debt || '0');
 
-          if (cashNum > 0) {
-            await posApi.addPayment(transaction.id, cashNum.toFixed(2), 'CASH');
-          }
-          if (debtNum > 0) {
-            await posApi.addPayment(transaction.id, debtNum.toFixed(2), 'DEBT');
-          }
+          await posApi.addPayment(transaction.id, amount, 'MIXED', {
+            cash: cashNum.toFixed(2),
+            debt: debtNum.toFixed(2),
+          });
 
           const finalTx = await posApi.completeSale(transaction.id);
           setTransaction(finalTx);

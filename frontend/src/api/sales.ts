@@ -81,9 +81,10 @@ export const posApi = {
   addPayment: async (
     transactionId: string | number,
     amount: string,
-    method: 'CASH' | 'BANK_TRANSFER' | 'DEBT'
+    method: 'CASH' | 'BANK_TRANSFER' | 'DEBT' | 'MIXED',
+    split?: { cash: string; debt: string }
   ): Promise<any> => {
-    const response = await client.post(`/sales/${transactionId}/payments/`, { amount, method });
+    const response = await client.post(`/sales/${transactionId}/payments/`, { amount, method, split });
     return response.data;
   },
 
