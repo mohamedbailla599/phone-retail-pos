@@ -53,6 +53,11 @@ export const notificationsApi = {
     await client.delete(`/notifications/${id}/`);
   },
 
+  clearAll: async (category?: string): Promise<{ deleted_count: number; status: string }> => {
+    const res = await client.post('/notifications/clear-all/', {}, { params: category ? { category } : {} });
+    return res.data;
+  },
+
   sendDigest: async (payload?: { email?: string; preview_only?: boolean }): Promise<any> => {
     const res = await client.post('/notifications/send-digest/', payload || {});
     return res.data;

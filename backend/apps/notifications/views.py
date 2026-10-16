@@ -16,9 +16,6 @@ class NotificationViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "delete", "head", "options"]
 
     def list(self, request, *args, **kwargs):
-        # Auto-scan to ensure data is fresh on list requests
-        NotificationScanner.scan_all()
-
         queryset = self.get_queryset()
 
         category = request.query_params.get("category")
@@ -66,6 +63,15 @@ class NotificationViewSet(viewsets.ModelViewSet):
             read_at=now,
         )
         return Response({"marked_read_count": updated, "status": "success"})
+
+    @action(detail=False, methods=["post", "delete"], url_path="clear-all")
+    def clear_all(self, request):
+        category = request.query_params.get("category")
+        qs = Notification.objects.all()
+        if category and category.upper() != "ALL":
+            qs = qs.filter(category=category.upper())
+        deleted_count, _ = qs.delete()
+        return Response({"deleted_count": deleted_count, "status": "success"})
 
     @action(detail=False, methods=["post"], url_path="scan")
     def trigger_scan(self, request):

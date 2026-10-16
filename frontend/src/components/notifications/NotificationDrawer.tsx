@@ -31,6 +31,7 @@ export default function NotificationDrawer() {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    clearAllNotifications,
     scanNow,
     setFilterCategory,
   } = useNotificationStore();
@@ -158,6 +159,19 @@ export default function NotificationDrawer() {
                   className="p-2 rounded-lg text-text-muted hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
                 >
                   <CheckCheck className="w-4 h-4" />
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => clearAllNotifications(filterCategory === 'ALL' ? undefined : filterCategory)}
+                  className="group relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/25 transition-all duration-200 cursor-pointer"
+                  title="Clear all"
+                >
+                  <Trash2 className="w-4 h-4 text-text-muted group-hover:text-red-400 transition-colors flex-shrink-0" strokeWidth={2.5} />
+                  <span className="text-[11px] font-bold text-red-400 max-w-0 opacity-0 group-hover:max-w-20 group-hover:opacity-100 overflow-hidden whitespace-nowrap transition-all duration-200 ease-out">
+                    Clear all
+                  </span>
                 </button>
               )}
               <button

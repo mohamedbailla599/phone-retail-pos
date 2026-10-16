@@ -39,11 +39,10 @@ class NotificationScanner:
             is_low = acc.quantity <= acc.reorder_level and acc.reorder_level > 0
 
             if is_out or is_low:
-                # Check if an unread notification already exists
+                # Check if a notification already exists (read or unread)
                 existing = Notification.objects.filter(
                     reference_type=ref_type,
                     reference_id=ref_id,
-                    is_read=False,
                 ).first()
 
                 if not existing:
@@ -64,13 +63,19 @@ class NotificationScanner:
                         action_url="/accessories",
                     )
                     created_count += 1
+                elif is_out and existing.severity != Notification.Severity.CRITICAL:
+                    # Upgrade to critical only if condition worsened to total rupture
+                    existing.severity = Notification.Severity.CRITICAL
+                    existing.title = f"Rupture de stock : {acc.product.name}"
+                    existing.message = f"Le stock d'accessoire est complètement épuisé (0 unité)."
+                    existing.is_read = False
+                    existing.save(update_fields=["severity", "title", "message", "is_read"])
             else:
                 # Auto-resolve if restocked
                 Notification.objects.filter(
                     reference_type=ref_type,
                     reference_id=ref_id,
-                    is_read=False,
-                ).update(is_read=True, read_at=timezone.now())
+                ).delete()
 
         # 2. Device stock check (models with 0 or 1 in-stock unit)
         device_products = (
@@ -91,7 +96,6 @@ class NotificationScanner:
                 existing = Notification.objects.filter(
                     reference_type=ref_type,
                     reference_id=ref_id,
-                    is_read=False,
                 ).first()
 
                 if not existing:
@@ -117,13 +121,19 @@ class NotificationScanner:
                         action_url="/devices",
                     )
                     created_count += 1
+                elif prod.in_stock_count == 0 and existing.severity != Notification.Severity.CRITICAL:
+                    # Upgrade to critical only if stock dropped from 1 to 0
+                    existing.severity = Notification.Severity.CRITICAL
+                    existing.title = f"Rupture téléphone : {prod.name}"
+                    existing.message = f"Aucun appareil disponible en rayon pour ce modèle."
+                    existing.is_read = False
+                    existing.save(update_fields=["severity", "title", "message", "is_read"])
             else:
                 # Auto-resolve if restocked (> 1)
                 Notification.objects.filter(
                     reference_type=ref_type,
                     reference_id=ref_id,
-                    is_read=False,
-                ).update(is_read=True, read_at=timezone.now())
+                ).delete()
 
         return created_count
 
@@ -147,7 +157,6 @@ class NotificationScanner:
             existing = Notification.objects.filter(
                 reference_type=ref_type,
                 reference_id=ref_id,
-                is_read=False,
             ).first()
 
             if not existing:
@@ -183,7 +192,6 @@ class NotificationScanner:
             existing = Notification.objects.filter(
                 reference_type=ref_type,
                 reference_id=ref_id,
-                is_read=False,
             ).first()
 
             if not existing:
@@ -208,10 +216,7 @@ class NotificationScanner:
         )
         Notification.objects.filter(
             reference_type__in=["RESERVATION_EXPIRED", "RESERVATION_SOON"],
-            is_read=False,
-        ).exclude(reference_id__in=[str(rid) for rid in active_res_ids]).update(
-            is_read=True, read_at=now
-        )
+        ).exclude(reference_id__in=[str(rid) for rid in active_res_ids]).delete()
 
         return created_count
 
@@ -232,7 +237,6 @@ class NotificationScanner:
             existing = Notification.objects.filter(
                 reference_type=ref_type,
                 reference_id=ref_id,
-                is_read=False,
             ).first()
 
             if not existing:

@@ -24,6 +24,7 @@ interface NotificationStore {
   markAsRead: (id: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: number) => Promise<void>;
+  clearAllNotifications: (category?: string) => Promise<void>;
   scanNow: () => Promise<void>;
   setOpen: (isOpen: boolean) => void;
   toggleOpen: () => void;
@@ -128,6 +129,35 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     } catch (err) {
       console.error('Failed to delete notification', err);
       set({ notifications: prev });
+    }
+  },
+
+  clearAllNotifications: async (category?: string) => {
+    const prev = get().notifications;
+    const prevUnread = get().unreadCount;
+    const prevByCategory = get().byCategory;
+
+    if (category && category !== 'ALL') {
+      const catKey = category as NotificationCategory;
+      const unreadInCat = prev.filter((n) => n.category === catKey && !n.is_read).length;
+      set({
+        notifications: prev.filter((n) => n.category !== catKey),
+        unreadCount: Math.max(0, prevUnread - unreadInCat),
+        byCategory: { ...prevByCategory, [catKey]: 0 },
+      });
+    } else {
+      set({
+        notifications: [],
+        unreadCount: 0,
+        byCategory: { STOCK: 0, DEBT: 0, RESERVATION: 0, SYSTEM: 0 },
+      });
+    }
+
+    try {
+      await notificationsApi.clearAll(category && category !== 'ALL' ? category : undefined);
+    } catch (err) {
+      console.error('Failed to clear notifications', err);
+      set({ notifications: prev, unreadCount: prevUnread, byCategory: prevByCategory });
     }
   },
 
