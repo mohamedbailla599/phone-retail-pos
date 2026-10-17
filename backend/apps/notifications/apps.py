@@ -9,7 +9,6 @@ class NotificationsConfig(AppConfig):
     verbose_name = "Notifications"
 
     def ready(self):
-        print(f"[DEBUG APPS] ready() called! sys.argv={sys.argv}, RUN_MAIN={os.environ.get('RUN_MAIN')}")
         # Start scheduler thread when running as server
         is_server = any(arg in sys.argv for arg in ["runserver", "daphne"]) or "daphne" in sys.argv[0]
         if is_server:

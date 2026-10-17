@@ -13,14 +13,8 @@ python manage.py migrate --noinput
 echo "==> Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Auto-load initial fixture if DB has no users and fixture exists
-if [ -f "fixtures/initial_data.json" ]; then
-    USER_COUNT=$(python -c "import os, django; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings'); django.setup(); from apps.users.models import User; print(User.objects.count())" 2>/dev/null || echo "0")
-    if [ "$USER_COUNT" = "0" ]; then
-        echo "==> Fresh database detected. Loading initial store data fixture..."
-        python manage.py loaddata fixtures/initial_data.json || echo "Initial data load warning"
-    fi
-fi
+echo "==> Ensuring initial store database and guaranteed admin credentials..."
+python manage.py ensure_initial_setup
 
 echo "==> Starting Daphne ASGI server on port 8000..."
 exec daphne -b 0.0.0.0 -p 8000 config.asgi:application

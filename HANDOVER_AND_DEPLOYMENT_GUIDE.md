@@ -57,7 +57,10 @@ Pour que la caisse fonctionne de manière autonome, robuste et sans nécessiter 
 | **Nginx & WebSockets** | Pas de proxy WebSocket pour `/ws/` | Ajout du bloc `location /ws/` avec `Upgrade` et `Connection "upgrade"` pour le scanner caméra et la synchro en direct |
 | **Dépendances Python** | `requirements.txt` incomplet (manquait `daphne`, `channels`, `pillow`, `python-barcode`) | `requirements.txt` mis à jour et validé avec tous les packages nécessaires |
 | **Variables Base de Données** | Mismatch entre `DATABASE_URL` et `POSTGRES_*` | `settings.py` mis à jour pour supporter aussi bien `DATABASE_URL` que `POSTGRES_*` sans erreur |
-| **Données de Départ** | Base vide à la livraison (l'oncle aurait dû tout retaper) | Fixture complète générée (`fixtures/initial_data.json`) : Magasin Guelmim, téléphone, logo, opérateurs et catalogue auto-chargés au premier démarrage |
+| **Encodage Fixture** | `fixtures/initial_data.json` encodé en CP1252/Windows (crash `UnicodeDecodeError: 'utf-8'`) | Ré-encodé strictement en **UTF-8 sans BOM** avec fins de ligne Unix (`LF`) |
+| **Amorçage Automatique** | Test bash fragile dans `entrypoint.sh` empêchant l'import sur base neuve | Commande Django dédiée `ensure_initial_setup` exécutée à chaque démarrage : importe automatiquement les 520 objets si la base est neuve |
+| **Identifiants Garantis** | Risque de verrouillage si mot de passe inconnu | Compte Administrateur garanti (`admin` / `admin`) avec droits superuser + opérateurs de caisse `Mohamed` et `Hassan` |
+| **Données de Départ** | Base vide à la livraison (l'oncle aurait dû tout retaper) | Fixture complète chargée (`fixtures/initial_data.json`) : Magasin Guelmim, téléphone, logo, opérateurs et catalogue auto-chargés au premier démarrage |
 | **Bouton de Sauvegarde** | Sauvegarde uniquement en ligne de commande | **Bouton « Sauvegarder la base »** ajouté directement dans la page **Paramètres** de la caisse pour un export instantané en un clic |
 | **Accès Wi-Fi Boutique** | Restreint strictement au PC portable | `ALLOWED_HOSTS: "*"` configuré pour permettre aux smartphones/tablettes de la boutique de scanner les articles à distance |
 | **Sauvegarde Quotidienne** | Sauvegarde sur le même disque dur uniquement | `backup_db.bat` sauvegarde sur `C:\POS_Backups` **ET duplique automatiquement sur toute clé USB branchée** |
@@ -91,11 +94,27 @@ Suivez ces 4 étapes simples lorsque vous préparez le PC portable de la boutiqu
    - Configurer le lancement automatique au démarrage de Windows.
    - Planifier la sauvegarde quotidienne de 21h30 dans le Planificateur de tâches Windows.
 
-### Étape 4 : Vérification
-- Double-cliquez sur le nouveau raccourci **Bighrissen Phone POS** sur le bureau.
-- L'application s'ouvre en mode application de bureau (sans barre d'adresse de navigateur).
-- Connectez-vous avec l'opérateur (ex: `Mohamed` ou `Hassan`).
-- Vérifiez que le catalogue et les paramètres de la boutique de Guelmim sont bien affichés.
+### Étape 4 : Connexion Initiale & Vérification
+1. Double-cliquez sur le nouveau raccourci **Bighrissen Phone POS** sur le bureau (ou ouvrez `http://localhost`).
+2. L'application s'ouvre en mode application de bureau (sans barre d'adresse de navigateur).
+3. Connectez-vous avec les **identifiants par défaut garantis** :
+
+| Champ | Valeur | Description |
+| :--- | :--- | :--- |
+| **Nom d'utilisateur** | `admin` | Compte Propriétaire / Administrateur Principal |
+| **Mot de passe** | `admin` | Mot de passe initial (modifiable dans Paramètres) |
+| **Opérateurs Caisse** | `Mohamed` / `Hassan` | Opérateurs de caisse pré-configurés pour le point de vente |
+| **Interface Caisse** | [http://localhost](http://localhost) | Caisse enregistreuse et gestion de stock |
+| **Console Django Admin** | [http://localhost/admin/](http://localhost/admin/) | Administration avancée DRF / Django |
+
+> [!TIP]
+> **Réinitialisation en cas d'oubli :**
+> Vous pouvez à tout moment réinitialiser ou forcer le mot de passe de l'administrateur en exécutant dans le terminal du projet :
+> ```bash
+> docker compose exec backend python manage.py ensure_initial_setup --admin-pass nouveau_mot_de_passe
+> ```
+
+4. Vérifiez que le catalogue d'articles et les paramètres de la boutique de Guelmim sont bien affichés.
 
 ---
 

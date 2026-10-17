@@ -32,6 +32,10 @@ if %errorlevel% neq 0 (
 )
 
 echo.
+echo Initialisation et verification de la base de donnees et des identifiants...
+docker compose exec -T backend python manage.py ensure_initial_setup
+
+echo.
 echo [2/4] Creation du raccourci sur le Bureau de l'oncle...
 powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'Bighrissen Phone POS.lnk')); $s.TargetPath = '%PROJECT_DIR%\start_pos.bat'; $s.WorkingDirectory = '%PROJECT_DIR%'; $s.WindowStyle = 7; $s.Description = 'Caisse et Gestion Bighrissen Phone'; $s.Save()"
 
@@ -52,6 +56,12 @@ echo.
 echo ================================================================
 echo           INSTALLATION TERMINEE AVEC SUCCES !
 echo ================================================================
+echo.
+echo Identifiants de connexion initiaux :
+echo   - Nom d'utilisateur : admin
+echo   - Mot de passe      : admin
+echo   - Operateurs actifs : Mohamed, Hassan
+echo   - Adresse Caisse    : http://localhost
 echo.
 echo Le raccourci "Bighrissen Phone POS" est cree sur le bureau.
 echo Vos donnees de boutique, catalogue et operateurs sont prets.

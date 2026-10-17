@@ -341,6 +341,15 @@ For deploying the POS system on a **store laptop for non-technical users**, foll
 | **`backup_db.bat`** | Scheduled / Owner | Automated database snapshot with 30-day retention. Automatically mirrors backups to plugged-in USB flash drives. |
 | **In-App Backup** | Store Owner | Click *« Sauvegarder la base »* in POS **Paramètres** (`/settings`) to instantly download a JSON snapshot (`pos_backup_YYYYMMDD.json`). |
 
+### Default Initial Credentials:
+| Username | Default Password | Role | Permissions |
+| :--- | :--- | :--- | :--- |
+| **`admin`** | `admin` | Store Owner (`OWNER`) | Full POS register, settings, audit, and Django `/admin/` superuser |
+| **`mohamed`** | `admin` | Store Operator (`OWNER`) | Full POS register & repair ticket management |
+| **`hassan`** | `admin` | Store Operator (`OWNER`) | Full POS register & repair ticket management |
+
+*(Credentials can be changed anytime in the POS **Paramètres** or overridden via `ADMIN_PASSWORD` in `.env`)*
+
 ---
 
 ## ⚙️ Configuration
