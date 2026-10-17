@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import Sidebar from '../components/layout/Sidebar';
 import { settingsApi, type StoreSettings, type Operator } from '../api/settings';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
+import StatCard from '../components/ui/StatCard';
+import { formatCurrency } from '../utils/formatters';
 import {
   Settings as SettingsIcon,
   Store,
@@ -75,6 +78,7 @@ export default function SettingsPage() {
     receipt_footer_message: '',
     owner_email: '',
     daily_digest_enabled: true,
+    daily_digest_time: '23:00',
     default_device_warranty_months: 3,
     default_accessory_warranty_months: 1,
     default_reservation_months: 1,
@@ -126,6 +130,7 @@ export default function SettingsPage() {
           receipt_footer_message: fetchedSettings.receipt_footer_message || '',
           owner_email: fetchedSettings.owner_email || '',
           daily_digest_enabled: fetchedSettings.daily_digest_enabled ?? true,
+          daily_digest_time: fetchedSettings.daily_digest_time || '23:00',
           default_device_warranty_months: fetchedSettings.default_device_warranty_months ?? 3,
           default_accessory_warranty_months: fetchedSettings.default_accessory_warranty_months ?? 1,
           default_reservation_months: fetchedSettings.default_reservation_months ?? 1,
@@ -158,6 +163,7 @@ export default function SettingsPage() {
         receipt_footer_message: updated.receipt_footer_message,
         owner_email: updated.owner_email || '',
         daily_digest_enabled: updated.daily_digest_enabled ?? true,
+        daily_digest_time: updated.daily_digest_time || '23:00',
         default_device_warranty_months: updated.default_device_warranty_months,
         default_accessory_warranty_months: updated.default_accessory_warranty_months,
         default_reservation_months: updated.default_reservation_months,
@@ -330,127 +336,96 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen bg-bg text-text overflow-hidden font-sans">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
+      <PageContainer>
+        <div className="h-96 flex flex-col items-center justify-center text-text-muted gap-3">
           <Loader2 className="w-8 h-8 text-gold animate-spin" />
-        </main>
-      </div>
+          <p className="text-sm font-medium">Chargement des paramètres...</p>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="flex h-screen bg-bg text-text overflow-hidden font-sans">
-      <Sidebar />
-
-      <main className="flex-1 flex flex-col min-w-0 bg-bg overflow-hidden">
-        {/* Header */}
-        <header className="px-8 py-5 border-b border-border bg-surface/50 backdrop-blur-md flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-gold/10 border border-gold-border flex items-center justify-center text-gold shadow-lg shadow-gold/5">
-              <SettingsIcon className="w-5 h-5" />
+    <PageContainer
+      header={
+        <PageHeader
+          title="Paramètres du Magasin"
+          subtitle="Personnalisation de la boutique, en-tête & pied de ticket de caisse et gestion de l'équipe"
+          icon={SettingsIcon}
+          badge={
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gold/10 text-gold border border-gold-border/50">
+              {formData.store_name || 'Bighrissen Phone'}
+            </span>
+          }
+          actions={
+            <div className="flex items-center gap-3">
+              {activeTab !== 'operators' && activeTab !== 'appearance' && (
+                <Button
+                  variant="primary"
+                  onClick={handleSaveSettings}
+                  loading={isSaving}
+                  icon={<Save className="w-4 h-4" />}
+                >
+                  Enregistrer les modifications
+                </Button>
+              )}
+              {activeTab === 'operators' && (
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    setOperatorModalError(null);
+                    setIsCreateModalOpen(true);
+                  }}
+                  icon={<Plus className="w-4 h-4" />}
+                >
+                  Nouvel Opérateur
+                </Button>
+              )}
             </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold tracking-tight text-white">Paramètres du Magasin</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gold/10 text-gold border border-gold-border/50">
-                  {formData.store_name || 'Bighrissen Phone'}
-                </span>
-              </div>
-              <p className="text-xs text-text-muted mt-0.5">
-                Personnalisation de la boutique, en-tête & pied de ticket de caisse et gestion de l'équipe
-              </p>
-            </div>
+          }
+        />
+      }
+    >
+      <div className="space-y-6">
+        {/* Notifications */}
+        {successMessage && (
+          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-3 animate-[fadeIn_150ms_ease-out]">
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+            <span className="font-medium">{successMessage}</span>
           </div>
+        )}
 
-          <div className="flex items-center gap-3">
-            {activeTab !== 'operators' && activeTab !== 'appearance' && (
-              <Button
-                variant="primary"
-                onClick={handleSaveSettings}
-                loading={isSaving}
-                icon={<Save className="w-4 h-4" />}
-              >
-                Enregistrer les modifications
-              </Button>
-            )}
-            {activeTab === 'operators' && (
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setOperatorModalError(null);
-                  setIsCreateModalOpen(true);
-                }}
-                icon={<Plus className="w-4 h-4" />}
-              >
-                Nouvel Opérateur
-              </Button>
-            )}
+        {errorMessage && (
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3 animate-[fadeIn_150ms_ease-out]">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <span>{errorMessage}</span>
           </div>
-        </header>
+        )}
 
-        {/* Scrollable Container */}
-        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
-          {/* Notifications */}
-          {successMessage && (
-            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-3 animate-[fadeIn_150ms_ease-out]">
-              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">{successMessage}</span>
-            </div>
-          )}
-
-          {errorMessage && (
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3 animate-[fadeIn_150ms_ease-out]">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {/* Quick Stat Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-surface border border-border flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gold/10 border border-gold-border flex items-center justify-center text-gold">
-                <Store className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Boutique Active</p>
-                <p className="text-base font-bold text-text mt-0.5 truncate max-w-[200px]">
-                  {formData.store_name || 'Bighrissen Phone'}
-                </p>
-                <p className="text-xs text-text-secondary mt-0.5">
-                  Préfixe reçus : <span className="font-mono text-gold">{formData.receipt_prefix || 'BP'}</span>
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-surface border border-gold-border/60 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gold/15 border border-gold-border flex items-center justify-center text-gold">
-                <Crown className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gold">Propriétaires & Direction</p>
-                <p className="text-base font-bold text-text mt-0.5">Hassan & Mohamed</p>
-                <p className="text-xs text-text-secondary mt-0.5">
-                  Co-propriétaires & Administrateurs ({activeOperatorsCount} opérateurs actifs)
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-surface border border-border flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Garanties par Défaut</p>
-                <p className="text-base font-bold text-text mt-0.5">
-                  {formData.default_device_warranty_months} mois (Téléphones)
-                </p>
-                <p className="text-xs text-text-secondary mt-0.5">
-                  Accessoires : {formData.default_accessory_warranty_months} mois | Réservations : {formData.default_reservation_months} mois
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* Quick Stat Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatCard
+            label="Boutique Active"
+            value={formData.store_name || 'Bighrissen Phone'}
+            subValue={`Préfixe reçus : ${formData.receipt_prefix || 'BP'}`}
+            icon={Store}
+            variant="gold"
+          />
+          <StatCard
+            label="Propriétaires & Direction"
+            value="Hassan & Mohamed"
+            subValue={`Co-propriétaires & Administrateurs (${activeOperatorsCount} actifs)`}
+            icon={Crown}
+            variant="gold"
+          />
+          <StatCard
+            label="Garanties par Défaut"
+            value={`${formData.default_device_warranty_months} mois`}
+            subValue={`Accessoires : ${formData.default_accessory_warranty_months} m | Réservations : ${formData.default_reservation_months} m`}
+            icon={ShieldCheck}
+            variant="emerald"
+          />
+        </div>
 
           {/* Navigation Tabs */}
           <div className="flex items-center gap-2 border-b border-border pb-3">
@@ -514,7 +489,10 @@ export default function SettingsPage() {
               }`}
             >
               <Bell className="w-4 h-4" />
-              <span>Notifications & Rapport 23h00</span>
+              <span>Notifications & Bilan Quotidien</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gold/10 text-gold border border-gold-border/30 tabular-nums">
+                {formData.daily_digest_time || '23:00'}
+              </span>
               {unreadCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-black">
                   {unreadCount}
@@ -1243,7 +1221,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Tab 5: Notifications & Rapport 23h00 */}
+          {/* Tab 5: Notifications & Rapport */}
           {activeTab === 'notifications' && (
             <div className="space-y-6">
               {/* Status Header Banner */}
@@ -1254,14 +1232,18 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-3">
-                      <h2 className="text-base font-bold text-white">Système d'Alertes & Bilan Quotidien 23h00</h2>
+                      <h2 className="text-base font-bold text-text">Système d'Alertes & Bilan Quotidien</h2>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gold/15 text-gold border border-gold-border/30 tabular-nums">
+                        <Clock className="w-3.5 h-3.5 text-gold" />
+                        Prévu à {formData.daily_digest_time || '23:00'}
+                      </span>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         Surveillance Active
                       </span>
                     </div>
                     <p className="text-xs text-text-muted mt-1 max-w-2xl">
-                      Détection proactive des stocks critiques (téléphones &le; 1, accessoires sous seuil), dépassements de crédit client, réservations expirées et envoi du bilan financier journalier à 23h00.
+                      Détection proactive des stocks critiques (téléphones &le; 1, accessoires sous seuil), dépassements de crédit client, réservations expirées et envoi automatisé du bilan financier journalier à <strong>{formData.daily_digest_time || '23:00'}</strong> (heure de Casablanca).
                     </p>
                   </div>
                 </div>
@@ -1298,12 +1280,12 @@ export default function SettingsPage() {
 
               {/* Grid 2 Columns: Email Settings & Actions */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Card 1: Configuration de l'Email et du Rapport 23h00 */}
+                {/* Card 1: Configuration de l'Email et de l'Heure d'Envoi */}
                 <div className="p-6 rounded-2xl bg-surface border border-border space-y-5">
                   <div className="flex items-center gap-2 pb-3 border-b border-border">
                     <Mail className="w-4 h-4 text-gold" />
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                      Destinataire du Rapport Quotidien
+                    <h3 className="text-sm font-bold text-text uppercase tracking-wider">
+                      Destinataire & Heure du Rapport Quotidien
                     </h3>
                   </div>
 
@@ -1322,6 +1304,49 @@ export default function SettingsPage() {
                       </p>
                     </div>
 
+                    {/* Scheduled Time Option */}
+                    <div>
+                      <label className="text-xs font-medium text-text-secondary uppercase tracking-wider block mb-1.5 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-gold" />
+                          Heure d'Envoi Automatique Programmé
+                        </span>
+                        <span className="text-[11px] font-bold text-gold tabular-nums bg-gold/10 px-2 py-0.5 rounded border border-gold-border/30">
+                          {formData.daily_digest_time || '23:00'} (GMT+1)
+                        </span>
+                      </label>
+                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+                        <div className="relative flex-1 min-w-[120px]">
+                          <input
+                            type="time"
+                            value={formData.daily_digest_time || '23:00'}
+                            onChange={(e) => setFormData({ ...formData, daily_digest_time: e.target.value })}
+                            className="w-full h-10 px-3 bg-surface-elevated border border-border rounded-xl text-text text-sm font-bold tabular-nums focus:outline-none focus:border-gold-border focus-ring cursor-pointer"
+                          />
+                        </div>
+                        {/* Quick Presets */}
+                        <div className="flex items-center gap-1 overflow-x-auto py-1">
+                          {['20:00', '21:00', '22:00', '23:00', '00:00'].map((presetTime) => (
+                            <button
+                              key={presetTime}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, daily_digest_time: presetTime })}
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums transition-all cursor-pointer border ${
+                                formData.daily_digest_time === presetTime
+                                  ? 'bg-gold text-bg font-bold border-gold shadow-xs'
+                                  : 'bg-surface-elevated text-text-secondary hover:text-text hover:bg-white/5 border-border'
+                              }`}
+                            >
+                              {presetTime}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-text-muted mt-1.5">
+                        Heure locale à laquelle le bilan financier et les alertes de stock sont consolidés et expédiés (fuseau Africa/Casablanca).
+                      </p>
+                    </div>
+
                     <div className="p-4 rounded-xl bg-surface-elevated border border-border flex items-start gap-3">
                       <input
                         type="checkbox"
@@ -1331,8 +1356,8 @@ export default function SettingsPage() {
                         className="mt-1 w-4 h-4 rounded text-gold focus:ring-gold border-border bg-surface cursor-pointer"
                       />
                       <label htmlFor="daily_digest_toggle" className="text-xs cursor-pointer select-none space-y-1">
-                        <span className="font-semibold text-white block">
-                          Activer l'envoi automatique chaque soir à 23h00
+                        <span className="font-semibold text-text block">
+                          Activer l'envoi automatique chaque soir à {formData.daily_digest_time || '23:00'}
                         </span>
                         <span className="text-text-muted block text-[11px]">
                           Déclencheur d'arrière-plan calé sur le fuseau horaire <strong>Africa/Casablanca (GMT+1)</strong>.
@@ -1368,13 +1393,13 @@ export default function SettingsPage() {
                   <div>
                     <div className="flex items-center gap-2 pb-3 border-b border-border">
                       <Send className="w-4 h-4 text-gold" />
-                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                      <h3 className="text-sm font-bold text-text uppercase tracking-wider">
                         Déclenchement Manuel & Prévisualisation
                       </h3>
                     </div>
 
                     <p className="text-xs text-text-muted mt-3 mb-4 leading-relaxed">
-                      Testez immédiatement l'envoi d'un récapitulatif sans attendre 23h00 ou prévisualisez les chiffres consolidés du jour directement dans une fenêtre modale.
+                      Testez immédiatement l'envoi d'un récapitulatif sans attendre {formData.daily_digest_time || '23:00'} ou prévisualisez les chiffres consolidés du jour directement dans une fenêtre modale.
                     </p>
 
                     <div className="space-y-3">
@@ -1487,7 +1512,7 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
-      </main>
+
 
       {/* Modal Nouvel Opérateur */}
       <Modal
@@ -1653,11 +1678,11 @@ export default function SettingsPage() {
         </form>
       </Modal>
 
-      {/* Modal Aperçu du Rapport Quotidien 23h00 */}
+      {/* Modal Aperçu du Rapport Quotidien */}
       <Modal
         open={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
-        title="Aperçu du Rapport Quotidien (Bilan de 23h00)"
+        title={`Aperçu du Rapport Quotidien (Bilan de ${digestPreview?.scheduled_time || formData.daily_digest_time || '23:00'})`}
       >
         <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
           {isLoadingPreview ? (
@@ -1670,12 +1695,14 @@ export default function SettingsPage() {
               {/* Header Info */}
               <div className="p-4 rounded-xl bg-surface border border-border flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-white text-sm">{digestPreview.store_name}</h4>
+                  <h4 className="font-bold text-text text-sm">{digestPreview.store_name}</h4>
                   <p className="text-xs text-text-muted">Date : {digestPreview.date_str}</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-gold font-semibold">Heure d'expédition cible</span>
-                  <p className="text-sm font-bold text-white">23:00 (Casablanca)</p>
+                  <p className="text-sm font-bold text-text tabular-nums">
+                    {digestPreview.scheduled_time || formData.daily_digest_time || '23:00'} (Casablanca)
+                  </p>
                 </div>
               </div>
 
@@ -1683,26 +1710,26 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3.5 rounded-xl bg-surface-elevated border border-border text-center">
                   <span className="text-[10px] text-text-muted uppercase tracking-wider block">Chiffre d'Affaires</span>
-                  <span className="text-base font-bold text-gold">{digestPreview.total_revenue?.toLocaleString()} MAD</span>
+                  <span className="text-base font-bold text-gold tabular-nums">{formatCurrency(digestPreview.total_revenue || 0)}</span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-surface-elevated border border-border text-center">
                   <span className="text-[10px] text-text-muted uppercase tracking-wider block">Ventes Totales</span>
-                  <span className="text-base font-bold text-white">{digestPreview.total_sales_count}</span>
+                  <span className="text-base font-bold text-text tabular-nums">{digestPreview.total_sales_count || 0}</span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-surface-elevated border border-border text-center">
                   <span className="text-[10px] text-text-muted uppercase tracking-wider block">Espèces</span>
-                  <span className="text-base font-bold text-emerald-400">{digestPreview.cash_total?.toLocaleString()} MAD</span>
+                  <span className="text-base font-bold text-emerald-400 tabular-nums">{formatCurrency(digestPreview.cash_total || 0)}</span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-surface-elevated border border-border text-center">
                   <span className="text-[10px] text-text-muted uppercase tracking-wider block">Dettes Globales</span>
-                  <span className="text-base font-bold text-red-400">{digestPreview.total_outstanding_debt?.toLocaleString()} MAD</span>
+                  <span className="text-base font-bold text-red-400 tabular-nums">{formatCurrency(digestPreview.total_outstanding_debt || 0)}</span>
                 </div>
               </div>
 
               {/* Stock Alerts in preview */}
               <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
                 <div className="flex items-center justify-between">
-                  <h5 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <h5 className="text-xs font-bold text-text uppercase tracking-wider flex items-center gap-2">
                     <Smartphone className="w-3.5 h-3.5 text-amber-400" />
                     Téléphones en Stock Critique (Total : {digestPreview.low_device_items?.length || 0})
                   </h5>
@@ -1714,7 +1741,7 @@ export default function SettingsPage() {
                     {digestPreview.low_device_items?.map((item: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-surface-elevated text-xs">
                         <span className="text-text font-medium">{item.model_name}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 tabular-nums">
                           {item.stock_count} restant{item.stock_count > 1 ? 's' : ''}
                         </span>
                       </div>
@@ -1726,7 +1753,7 @@ export default function SettingsPage() {
               {/* Low Accessories in preview */}
               <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
                 <div className="flex items-center justify-between">
-                  <h5 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <h5 className="text-xs font-bold text-text uppercase tracking-wider flex items-center gap-2">
                     <Package className="w-3.5 h-3.5 text-amber-400" />
                     Accessoires sous le Seuil (Total : {digestPreview.low_accessory_items?.length || 0})
                   </h5>
@@ -1738,7 +1765,7 @@ export default function SettingsPage() {
                     {digestPreview.low_accessory_items?.map((item: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-surface-elevated text-xs">
                         <span className="text-text font-medium">{item.name}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 tabular-nums">
                           {item.current_stock} / seuil {item.reorder_level}
                         </span>
                       </div>
@@ -1750,7 +1777,7 @@ export default function SettingsPage() {
               {/* Debtors in preview */}
               <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
                 <div className="flex items-center justify-between">
-                  <h5 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <h5 className="text-xs font-bold text-text uppercase tracking-wider flex items-center gap-2">
                     <DollarSign className="w-3.5 h-3.5 text-red-400" />
                     Clients avec Dettes Actives ({digestPreview.debtor_customers?.length || 0})
                   </h5>
@@ -1765,7 +1792,7 @@ export default function SettingsPage() {
                           <span className="text-text font-medium block">{client.name}</span>
                           <span className="text-[10px] text-text-muted">{client.phone}</span>
                         </div>
-                        <span className="font-bold text-red-400">{client.debt?.toLocaleString()} MAD</span>
+                        <span className="font-bold text-red-400 tabular-nums">{formatCurrency(client.debt || 0)}</span>
                       </div>
                     ))}
                   </div>
@@ -1783,6 +1810,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </PageContainer>
   );
 }

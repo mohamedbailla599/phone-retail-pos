@@ -13,19 +13,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    'bg-gold text-[#080808] font-semibold hover:bg-gold-bright active:bg-gold-soft shadow-[0_2px_12px_rgba(212,175,90,0.20)] hover:shadow-[0_4px_20px_rgba(212,175,90,0.30)]',
+    'bg-gold text-[#080808] font-semibold hover:bg-gold-bright active:bg-gold-soft shadow-[0_2px_12px_rgba(212,175,90,0.20)] hover:shadow-[0_4px_20px_rgba(212,175,90,0.30)] cursor-pointer',
   secondary:
     'bg-surface-elevated text-text border border-border hover:bg-surface-hover hover:border-border-focus shadow-xs cursor-pointer',
   danger:
     'bg-danger/10 text-red-500 dark:text-red-400 border border-red-500/25 hover:bg-danger/20 hover:border-red-500/40 shadow-xs cursor-pointer',
   ghost:
-    'bg-transparent text-text-secondary hover:text-text hover:bg-surface-hover cursor-pointer',
+    'bg-transparent text-text-secondary hover:text-text hover:bg-surface-hover cursor-pointer border border-transparent',
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-xs rounded-[var(--radius-sm)] gap-1.5',
-  md: 'h-10 px-4 text-[13px] rounded-[var(--radius-md)] gap-2',
-  lg: 'h-12 px-6 text-[14px] rounded-[var(--radius-lg)] gap-2.5',
+  sm: 'h-9 px-3.5 text-xs rounded-[var(--radius-md)] gap-1.5',
+  md: 'h-10 px-4 text-sm rounded-[var(--radius-md)] gap-2',
+  lg: 'h-11 px-5 text-sm rounded-[var(--radius-lg)] gap-2.5',
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -35,9 +35,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={clsx(
-          'inline-flex items-center justify-center font-medium transition-all duration-200 select-none',
+          'inline-flex items-center justify-center font-medium transition-all duration-150 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:border-gold-border',
           'disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none',
-          'active:scale-[0.97]',
+          'active:scale-[0.98]',
           variants[variant],
           sizes[size],
           className,

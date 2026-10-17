@@ -72,14 +72,14 @@
   --theme-gold-border: rgba(212,175,90,0.30);
   --theme-gold-glow: rgba(212,175,90,0.08);
 
-  /* —— Text (Dark) —— */
-  --theme-text: #F2F2F5;
-  --theme-text-secondary: #9A9AB0;
-  --theme-text-muted: #5C5C72;
+  /* —— Text (Dark - Enhanced for WCAG AA compliance) —— */
+  --theme-text: #F4F4F7;
+  --theme-text-secondary: #A2A5B8;
+  --theme-text-muted: #7E8299;
 
   /* —— Borders (Dark) —— */
-  --theme-border: rgba(255,255,255,0.07);
-  --theme-border-subtle: rgba(255,255,255,0.04);
+  --theme-border: rgba(255,255,255,0.08);
+  --theme-border-subtle: rgba(255,255,255,0.05);
 
   /* —— Shadows (Dark) —— */
   --theme-shadow-sm: 0 1px 2px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.15);
@@ -122,9 +122,9 @@ html.light {
   --theme-gold-glow: rgba(184,134,11,0.08);
 
   /* —— Text (Light) —— */
-  --theme-text: #111827;
-  --theme-text-secondary: #4B5563;
-  --theme-text-muted: #6B7280;
+  --theme-text: #0F172A;
+  --theme-text-secondary: #475569;
+  --theme-text-muted: #64748B;
 
   /* —— Borders (Light) —— */
   --theme-border: rgba(0,0,0,0.08);
@@ -189,26 +189,45 @@ html.light {
   --color-border: var(--theme-border);
   --color-border-subtle: var(--theme-border-subtle);
 
-  /* —— Status —— */
+  /* —— Status Semantic Tokens —— */
   --color-success: #10B981;
-  --color-success-bg: rgba(16,185,129,0.10);
+  --color-success-bg: rgba(16,185,129,0.12);
+  --color-success-border: rgba(16,185,129,0.25);
+
   --color-warning: #F59E0B;
-  --color-warning-bg: rgba(245,158,11,0.10);
+  --color-warning-bg: rgba(245,158,11,0.12);
+  --color-warning-border: rgba(245,158,11,0.25);
+
   --color-danger: #EF4444;
-  --color-danger-bg: rgba(239,68,68,0.10);
+  --color-danger-bg: rgba(239,68,68,0.12);
+  --color-danger-border: rgba(239,68,68,0.25);
+
   --color-info: #3B82F6;
-  --color-info-bg: rgba(59,130,246,0.10);
+  --color-info-bg: rgba(59,130,246,0.12);
+  --color-info-border: rgba(59,130,246,0.25);
+
+  --color-purple: #8B5CF6;
+  --color-purple-bg: rgba(139,92,246,0.12);
+  --color-purple-border: rgba(139,92,246,0.25);
 
   /* —— Typography —— */
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 
-  /* —— Radius Scale —— */
+  /* —— Spacing Scale (4, 8, 12, 16, 24, 32, 48) —— */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+
+  /* —— Radius Scale (Unified 3 radii + full) —— */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --radius-2xl: 22px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
 
   /* —— Shadows —— */
   --shadow-sm: var(--theme-shadow-sm);
@@ -761,4 +780,60 @@ html.light {
     font-family: monospace !important;
     z-index: 999999 !important;
   }
+}
+
+/* ============================================
+   TYPOGRAPHY & TABLE UTILITIES
+   ============================================ */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.text-page-title {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.text-section-title {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.text-card-title {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.text-body {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  font-weight: 400;
+}
+
+.text-caption {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+}
+
+.text-overline {
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.focus-ring {
+  outline: none;
+  transition: box-shadow 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px var(--theme-bg), 0 0 0 4px var(--theme-gold);
+  border-color: var(--theme-gold);
 }

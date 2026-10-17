@@ -10,6 +10,7 @@ import OperatorSelectionModal from '../ui/OperatorSelectionModal';
 import { useRequireOperator } from '../../hooks/useRequireOperator';
 import BarcodeScannerModal from '../ui/BarcodeScannerModal';
 import DeviceStickerModal, { type DeviceStickerData } from './DeviceStickerModal';
+import PhoneColorDot from '../ui/PhoneColorDot';
 
 interface Props {
   isOpen: boolean;
@@ -83,6 +84,9 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
     minimum_selling_price: '',
     battery_health: '',
     battery_capacity_mah: '',
+    storage_gb: '128',
+    ram_gb: '',
+    color: '',
     condition: 'A',
     
     // New Product fields
@@ -107,7 +111,8 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
       setFormData({
         product_id: '', imei_1: '', imei_2: '', serial_number: '',
         cost_price: '', default_selling_price: '', minimum_selling_price: '',
-        battery_health: '', battery_capacity_mah: '', condition: 'A',
+        battery_health: '', battery_capacity_mah: '',
+        storage_gb: '128', ram_gb: '', color: '', condition: 'A',
         new_product_name: '', new_product_brand: '', new_product_sku: '',
         new_product_storage_gb: '', new_product_ram_gb: '', new_product_category_id: '',
         is_new_category: false, new_category_name: ''
@@ -197,6 +202,16 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
         serial_number: formData.serial_number || null,
       };
 
+      if (formData.storage_gb) {
+        payload.storage_gb = parseInt(formData.storage_gb);
+      }
+      if (deviceType === 'ANDROID' && formData.ram_gb) {
+        payload.ram_gb = parseInt(formData.ram_gb);
+      }
+      if (formData.color) {
+        payload.color = formData.color.trim();
+      }
+
       if (deviceType === 'APPLE' && formData.battery_health) {
         payload.battery_health = parseInt(formData.battery_health);
       }
@@ -213,12 +228,17 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
           brand: selectedProduct?.brand || formData.new_product_brand,
           sku: selectedProduct?.sku || formData.new_product_sku,
           storage_gb:
+            createdDevice.storage_gb ??
             selectedProduct?.storage_gb ??
             (formData.new_product_storage_gb ? parseInt(formData.new_product_storage_gb) : null),
           ram_gb:
+            createdDevice.ram_gb ??
             selectedProduct?.ram_gb ??
             (formData.new_product_ram_gb ? parseInt(formData.new_product_ram_gb) : null),
         },
+        storage_gb: createdDevice.storage_gb,
+        ram_gb: createdDevice.ram_gb,
+        color: createdDevice.color,
         imei_1: createdDevice.imei_1,
         imei_2: createdDevice.imei_2,
         serial_number: createdDevice.serial_number,
@@ -310,7 +330,6 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
     }
   };
 
-  const selectedProduct = isNewProduct ? null : products.find(p => p.id.toString() === formData.product_id);
   const isIdentifiersValid = formData.imei_1 || formData.serial_number;
   const showIdentifierError = touched['identifiers'] && !isIdentifiersValid;
 
@@ -386,7 +405,7 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                   options={products.map(p => ({
                     value: p.id.toString(),
                     label: `${p.brand} ${p.name}`,
-                    description: `SKU: ${p.sku}`
+                    description: `${p.category?.name || p.brand} • SKU: ${p.sku}`
                   }))}
                   onSearch={handleSearch}
                   loading={searching}
@@ -563,75 +582,165 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
             </div>
 
             {/* Section 4: Device Specifications */}
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-text-secondary">4. Device Specifications</label>
-              <div className="grid grid-cols-2 gap-4">
-                {deviceType === 'ANDROID' && (
-                  <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">RAM (GB)</label>
-                    {isNewProduct ? (
-                      <input
-                        type="number"
-                        value={formData.new_product_ram_gb}
-                        onChange={(e) => setFormData({ ...formData, new_product_ram_gb: e.target.value })}
-                        className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        disabled
-                        value={selectedProduct?.ram_gb || 'N/A'}
-                        className="w-full h-10 px-3 bg-surface-elevated/50 border border-border/70 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
-                      />
-                    )}
-                  </div>
-                )}
-                
-                <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1">Storage (GB)</label>
-                  {isNewProduct ? (
+            <div className="space-y-4 p-4 rounded-[var(--radius-md)] bg-surface-alt/70 border border-border">
+              <label className="block text-sm font-semibold text-text">4. Caractéristiques de l'exemplaire reçu</label>
+
+              {/* Storage selection */}
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Capacité de stockage *
+                </label>
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                  {['64', '128', '256', '512', '1024'].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setFormData((f) => ({ ...f, storage_gb: size }))}
+                      className={cn(
+                        'py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer',
+                        formData.storage_gb === size
+                          ? 'bg-gold/20 border-gold text-gold shadow-xs font-bold'
+                          : 'bg-surface border-border text-text-secondary hover:text-text hover:bg-surface-hover'
+                      )}
+                    >
+                      {size === '1024' ? '1 To' : `${size} Go`}
+                    </button>
+                  ))}
+                  <div className="flex-1 min-w-[100px]">
                     <input
                       type="number"
-                      disabled
-                      value={formData.new_product_storage_gb}
-                      className="w-full h-10 px-3 bg-surface-elevated/50 border border-border/70 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
+                      placeholder="Autre Go..."
+                      value={['64', '128', '256', '512', '1024'].includes(formData.storage_gb) ? '' : formData.storage_gb}
+                      onChange={(e) => setFormData((f) => ({ ...f, storage_gb: e.target.value }))}
+                      className="w-full h-8 px-2.5 bg-surface border border-border rounded-lg text-xs text-text font-mono focus:border-gold-border focus:ring-1 focus:ring-gold/20 focus:outline-none"
                     />
-                  ) : (
-                    <input
-                      type="text"
-                      disabled
-                      value={selectedProduct?.storage_gb || 'N/A'}
-                      className="w-full h-10 px-3 bg-surface-elevated/50 border border-border/70 rounded-[var(--radius-md)] text-sm text-text-muted focus:outline-none cursor-not-allowed"
-                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* RAM selection (Android) */}
+              {deviceType === 'ANDROID' && (
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                    Mémoire RAM (Android)
+                  </label>
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {['4', '6', '8', '12', '16'].map((ram) => (
+                      <button
+                        key={ram}
+                        type="button"
+                        onClick={() => setFormData((f) => ({ ...f, ram_gb: f.ram_gb === ram ? '' : ram }))}
+                        className={cn(
+                          'py-1.5 px-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer',
+                          formData.ram_gb === ram
+                            ? 'bg-gold/20 border-gold text-gold shadow-xs font-bold'
+                            : 'bg-surface border-border text-text-secondary hover:text-text hover:bg-surface-hover'
+                        )}
+                      >
+                        {ram} Go
+                      </button>
+                    ))}
+                    <div className="flex-1 min-w-[90px]">
+                      <input
+                        type="number"
+                        placeholder="Autre RAM..."
+                        value={['4', '6', '8', '12', '16'].includes(formData.ram_gb) ? '' : formData.ram_gb}
+                        onChange={(e) => setFormData((f) => ({ ...f, ram_gb: e.target.value }))}
+                        className="w-full h-8 px-2.5 bg-surface border border-border rounded-lg text-xs text-text font-mono focus:border-gold-border focus:ring-1 focus:ring-gold/20 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Color selection */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Couleur de l'appareil
+                  </label>
+                  {formData.color && (
+                    <div className="flex items-center gap-1.5 text-xs text-text-secondary font-medium">
+                      <PhoneColorDot color={formData.color} size="xs" />
+                      <span>{formData.color}</span>
+                    </div>
                   )}
                 </div>
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                  {['Noir', 'Blanc', 'Bleu', 'Gris', 'Or', 'Vert', 'Titane Naturel', 'Violet', 'Starlight', 'Midnight'].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setFormData((f) => ({ ...f, color: f.color?.toLowerCase() === c.toLowerCase() ? '' : c }))}
+                      className={cn(
+                        'py-1 px-2.5 rounded-md border text-[11px] font-medium transition-all cursor-pointer inline-flex items-center gap-1.5',
+                        formData.color?.toLowerCase() === c.toLowerCase()
+                          ? 'bg-gold/20 border-gold text-gold font-semibold shadow-xs'
+                          : 'bg-surface border-border text-text-muted hover:text-text hover:bg-surface-hover'
+                      )}
+                    >
+                      <PhoneColorDot color={c} size="xs" />
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Ou saisir une couleur personnalisée (ex: Deep Purple, Rose Gold, Phantom Black)..."
+                    value={formData.color}
+                    onChange={(e) => setFormData((f) => ({ ...f, color: e.target.value }))}
+                    className="w-full h-9 pl-3 pr-8 bg-surface border border-border rounded-[var(--radius-md)] text-xs text-text focus:border-gold-border focus:ring-1 focus:ring-gold/20 focus:outline-none transition-all"
+                  />
+                  {formData.color && (
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      <PhoneColorDot color={formData.color} size="sm" />
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                {deviceType === 'APPLE' && (
+              {/* Battery specs */}
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/60">
+                {deviceType === 'APPLE' ? (
                   <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">Battery Health (%)</label>
+                    <label className="block text-xs font-medium text-text-muted mb-1">État de la batterie (%)</label>
                     <input
                       type="number"
                       min="1"
                       max="100"
+                      placeholder="Ex: 87"
                       value={formData.battery_health}
                       onChange={(e) => setFormData({ ...formData, battery_health: e.target.value })}
-                      className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
+                      className="w-full h-9 px-3 bg-surface border border-border rounded-[var(--radius-md)] text-xs text-text font-mono focus:border-gold-border focus:ring-1 focus:ring-gold/20 focus:outline-none transition-all"
                     />
                   </div>
-                )}
-
-                {deviceType === 'ANDROID' && (
+                ) : (
                   <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">Battery Capacity (mAh)</label>
+                    <label className="block text-xs font-medium text-text-muted mb-1">Capacité batterie (mAh)</label>
                     <input
                       type="number"
                       min="1"
+                      placeholder="Ex: 5000"
                       value={formData.battery_capacity_mah}
                       onChange={(e) => setFormData({ ...formData, battery_capacity_mah: e.target.value })}
-                      className="w-full h-10 px-3 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text focus:border-gold-border focus:ring-2 focus:ring-gold/20 focus:outline-none transition-all"
+                      className="w-full h-9 px-3 bg-surface border border-border rounded-[var(--radius-md)] text-xs text-text font-mono focus:border-gold-border focus:ring-1 focus:ring-gold/20 focus:outline-none transition-all"
                     />
                   </div>
                 )}
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">État esthétique (Grade)</label>
+                  <Select
+                    value={formData.condition}
+                    onChange={(val) => setFormData({ ...formData, condition: val })}
+                    options={[
+                      { value: 'A', label: 'Grade A (Excellent état / Comme neuf)' },
+                      { value: 'B', label: 'Grade B (Très bon état)' },
+                      { value: 'C', label: 'Grade C (Traces d’usure)' },
+                      { value: 'N', label: 'Neuf (Sous emballage)' }
+                    ]}
+                  />
+                </div>
               </div>
             </div>
 
@@ -673,21 +782,6 @@ export default function ReceiveDeviceModal({ isOpen, onClose, onSuccess }: Props
                   />
                 </div>
               </div>
-            </div>
-
-            {/* Section 6: Condition */}
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-text-secondary">6. Condition</label>
-              <Select
-                value={formData.condition}
-                onChange={(val) => setFormData({ ...formData, condition: val })}
-                options={[
-                  { value: 'A', label: 'Grade A (Like New)' },
-                  { value: 'B', label: 'Grade B (Good)' },
-                  { value: 'C', label: 'Grade C (Fair)' },
-                  { value: 'N', label: 'New' }
-                ]}
-              />
             </div>
 
             <div className="pt-6 flex justify-end gap-3 border-t border-border">

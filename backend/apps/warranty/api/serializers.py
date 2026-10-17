@@ -20,6 +20,7 @@ def generate_repair_ticket_number() -> str:
 
 class RepairTicketSerializer(serializers.ModelSerializer):
     created_by_name = serializers.SerializerMethodField()
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
     assigned_technician_name = serializers.SerializerMethodField()
     remaining_balance = serializers.SerializerMethodField()
     issue_type_display = serializers.CharField(source="get_issue_type_display", read_only=True)
@@ -53,6 +54,7 @@ class RepairTicketSerializer(serializers.ModelSerializer):
             "warranty_days",
             "created_by",
             "created_by_name",
+            "created_by_username",
             "assigned_technician",
             "assigned_technician_name",
             "estimated_completion_date",

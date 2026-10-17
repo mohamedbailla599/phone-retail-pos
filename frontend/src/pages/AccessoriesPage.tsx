@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { inventoryApi } from '../api/inventory';
 import type { AccessoryStock } from '../api/inventory';
-import { Search, Plus, Loader2, Package } from 'lucide-react';
+import { Search, Plus, Loader2, Package, RefreshCw } from 'lucide-react';
 import ReceiveAccessoryModal from '../components/inventory/ReceiveAccessoryModal';
 import AdjustAccessoryStockModal from '../components/inventory/AdjustAccessoryStockModal';
 import { useDebounce } from '../hooks/useDebounce';
-import Sidebar from '../components/layout/Sidebar';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
+import { formatCurrency } from '../utils/formatters';
 
 export default function AccessoriesPage() {
   const [stocks, setStocks] = useState<AccessoryStock[]>([]);
@@ -24,7 +26,7 @@ export default function AccessoriesPage() {
       const data = await inventoryApi.getAccessories({ search: debouncedSearch });
       setStocks(data);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load accessories');
+      setError(err.response?.data?.error || 'Erreur lors du chargement des accessoires');
     } finally {
       setLoading(false);
     }
@@ -34,120 +36,136 @@ export default function AccessoriesPage() {
     loadStocks();
   }, [loadStocks]);
 
+  const headerActions = (
+    <div className="flex items-center gap-2.5">
+      <button
+        onClick={() => loadStocks()}
+        disabled={loading}
+        className="h-10 px-3.5 rounded-[var(--radius-md)] bg-surface hover:bg-surface-hover text-text-secondary hover:text-text border border-border flex items-center gap-2 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+        title="Actualiser"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-gold' : ''}`} />
+        <span>Actualiser</span>
+      </button>
+
+      <button
+        onClick={() => setIsModalOpen(true)}
+        className="h-10 px-4 bg-gold hover:bg-gold-bright text-black font-semibold rounded-[var(--radius-md)] flex items-center gap-2 text-xs transition-all shadow-md active:scale-95 cursor-pointer"
+      >
+        <Plus className="w-4 h-4" />
+        <span>Réceptionner un accessoire</span>
+      </button>
+    </div>
+  );
+
   return (
-    <div className="h-screen flex bg-bg overflow-hidden w-full print:hidden">
-      {/* Sidebar navigation */}
-      <Sidebar />
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-bg">
-        <header className="h-[72px] flex items-center justify-between px-8 bg-surface border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold-border flex items-center justify-center text-gold">
-              <Package className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-text tracking-tight flex items-center gap-2">
-                Accessories Inventory
-              </h1>
-              <p className="text-xs text-text-muted mt-0.5">{stocks.length} accessories in system</p>
-            </div>
+    <PageContainer
+      header={
+        <PageHeader
+          icon={Package}
+          title="Stock des Accessoires"
+          subtitle={`${stocks.length} références d'accessoires enregistrées en boutique`}
+          actions={headerActions}
+        />
+      }
+    >
+      <div className="space-y-6">
+        {error && (
+          <div className="p-4 rounded-[var(--radius-md)] bg-danger/10 border border-danger/30 text-danger text-sm">
+            {error}
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="h-10 px-4 bg-gold hover:bg-gold-bright text-black font-semibold rounded-[var(--radius-md)] flex items-center gap-2 transition-all shadow-md active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            Receive Accessory
-          </button>
-        </header>
+        )}
 
-        <div className="flex-1 overflow-auto p-8 space-y-6">
-          <div className="max-w-[1400px] mx-auto space-y-6">
-          {error && (
-            <div className="p-3 mb-6 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-              {error}
+        {/* Filters */}
+        <div className="p-4 rounded-[var(--radius-lg)] bg-surface border border-border flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher par nom d'accessoire, SKU, marque..."
+              className="w-full pl-10 pr-4 h-10 bg-surface-elevated border border-border rounded-[var(--radius-md)] text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-gold/60 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-surface border border-border rounded-[var(--radius-lg)] overflow-hidden relative min-h-[200px] shadow-xs">
+          {loading && (
+            <div className="absolute inset-0 bg-surface/50 backdrop-blur-xs flex items-center justify-center z-10">
+              <Loader2 className="w-8 h-8 text-gold animate-spin" />
             </div>
           )}
-
-          {/* Filters */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search accessories by name, SKU..."
-                className="w-full pl-10 pr-4 h-10 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="bg-surface border border-border rounded-[var(--radius-lg)] overflow-hidden relative min-h-[200px] shadow-sm">
-            {loading && (
-              <div className="absolute inset-0 bg-surface/50 backdrop-blur-sm flex items-center justify-center z-10">
-                <Loader2 className="w-8 h-8 text-gold animate-spin" />
-              </div>
-            )}
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-alt">
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Product</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">SKU</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Cost Price</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Selling Price</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Qty</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Reorder Level</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Actions</th>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-border bg-surface-elevated text-text-secondary uppercase font-semibold">
+                <tr>
+                  <th className="px-4 py-3.5">Produit</th>
+                  <th className="px-4 py-3.5">SKU</th>
+                  <th className="px-4 py-3.5 text-right">Coût d'achat</th>
+                  <th className="px-4 py-3.5 text-right">Prix de vente</th>
+                  <th className="px-4 py-3.5 text-center">Quantité</th>
+                  <th className="px-4 py-3.5 text-center">Seuil alerte</th>
+                  <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {stocks.map((stock) => (
-                  <tr key={stock.id} className="hover:bg-surface-hover transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-text">{stock.product.name}</p>
-                      <p className="text-xs text-text-muted">{stock.product.brand}</p>
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary">{stock.product.sku}</td>
-                    <td className="px-4 py-3 text-text text-right">{stock.cost_price} DH</td>
-                    <td className="px-4 py-3 text-text text-right">{stock.selling_price} DH</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded text-xs font-medium border ${
-                        stock.quantity === 0 
-                          ? 'bg-red-500/10 text-red-400 border-red-500/20' 
-                          : stock.quantity <= stock.reorder_level 
-                            ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' 
-                            : 'bg-green-500/10 text-green-400 border-green-500/20'
-                      }`}>
-                        {stock.quantity}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary text-right">{stock.reorder_level}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedStock(stock);
-                          setAdjustModalOpen(true);
-                        }}
-                        className="text-gold hover:text-gold-hover text-sm font-medium px-3 py-1 rounded bg-gold/10 hover:bg-gold/20 transition-colors"
-                      >
-                        Adjust
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {stocks.map((stock) => {
+                  const isLow = stock.reorder_level > 0 && stock.quantity <= stock.reorder_level;
+                  const isOut = stock.quantity === 0;
+
+                  return (
+                    <tr key={stock.id} className="hover:bg-surface-hover/60 transition-colors">
+                      <td className="px-4 py-3.5">
+                        <p className="font-semibold text-text">{stock.product.name}</p>
+                        <p className="text-[11px] text-text-muted">{stock.product.brand}</p>
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-[11px] text-text-secondary">{stock.product.sku}</td>
+                      <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-secondary">
+                        {formatCurrency(stock.cost_price)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-mono tabular-nums font-semibold text-text">
+                        {formatCurrency(stock.selling_price)}
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2.5 py-0.5 rounded-full text-xs font-bold tabular-nums border ${
+                          isOut 
+                            ? 'bg-danger/10 text-danger border-danger/30' 
+                            : isLow 
+                              ? 'bg-warning/10 text-warning border-warning/30' 
+                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                        }`}>
+                          {stock.quantity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center text-text-secondary tabular-nums">
+                        {stock.reorder_level > 0 ? stock.reorder_level : <span className="text-text-muted">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <button
+                          onClick={() => {
+                            setSelectedStock(stock);
+                            setAdjustModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 rounded-[var(--radius-sm)] bg-surface-elevated hover:bg-gold/20 text-gold border border-gold/30 hover:border-gold/50 text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          Ajuster
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {stocks.length === 0 && !loading && (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center">
-                      <div className="text-text-muted mb-2">No accessories found.</div>
+                      <div className="text-text-muted mb-2 text-xs">Aucun accessoire trouvé.</div>
                       {search ? (
                         <button 
                           onClick={() => setSearch('')}
-                          className="text-gold hover:underline text-sm"
+                          className="text-gold hover:underline text-xs font-semibold cursor-pointer"
                         >
-                          Clear search
+                          Effacer la recherche
                         </button>
                       ) : null}
                     </td>
@@ -158,7 +176,6 @@ export default function AccessoriesPage() {
           </div>
         </div>
       </div>
-    </div>
 
       <ReceiveAccessoryModal 
         isOpen={isModalOpen} 
@@ -175,6 +192,7 @@ export default function AccessoriesPage() {
         onSuccess={loadStocks}
         stock={selectedStock}
       />
-    </div>
+    </PageContainer>
   );
 }
+

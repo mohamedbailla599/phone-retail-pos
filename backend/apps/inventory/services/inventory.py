@@ -57,6 +57,9 @@ def receive_device(
     serial_number=None,
     battery_health=None,
     battery_capacity_mah=None,
+    storage_gb=None,
+    ram_gb=None,
+    color=None,
     condition=DeviceItem.Condition.A,
     reference_type=None,
     reference_id=None,
@@ -86,6 +89,10 @@ def receive_device(
 
     now = timezone.now()
 
+    # Apple devices never track RAM
+    if product and (product.brand.lower() == "apple" or "iphone" in product.name.lower()):
+        ram_gb = None
+
     device = DeviceItem.objects.create(
         product=product,
         imei_1=imei_1,
@@ -96,6 +103,9 @@ def receive_device(
         minimum_selling_price=minimum_selling_price,
         battery_health=battery_health,
         battery_capacity_mah=battery_capacity_mah,
+        storage_gb=storage_gb,
+        ram_gb=ram_gb,
+        color=color,
         condition=condition,
         status=DeviceItem.Status.IN_STOCK,
         received_at=now,

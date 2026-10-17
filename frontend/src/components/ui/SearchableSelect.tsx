@@ -16,6 +16,7 @@ interface SearchableSelectProps {
   onSearch: (query: string) => void;
   loading?: boolean;
   placeholder?: string;
+  emptyMessage?: string;
   className?: string;
   error?: boolean;
   disabled?: boolean;
@@ -28,6 +29,7 @@ export function SearchableSelect({
   onSearch,
   loading,
   placeholder = 'Search...',
+  emptyMessage = 'No results found',
   className,
   error,
   disabled
@@ -135,7 +137,7 @@ export function SearchableSelect({
             ))}
             {options.length === 0 && !loading && (
               <li className="px-3 py-2 text-sm text-text-muted text-center">
-                No products found
+                {emptyMessage}
               </li>
             )}
           </ul>

@@ -84,6 +84,25 @@ class DeviceItem(models.Model):
         blank=True,
     )
 
+    storage_gb = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Stockage de l'appareil en Go (ex: 64, 128, 256, 512, 1024)",
+    )
+
+    ram_gb = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="RAM de l'appareil en Go (ex: 4, 6, 8, 12, 16)",
+    )
+
+    color = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Couleur de l'appareil (ex: Noir, Titane Naturel, Bleu)",
+    )
+
     condition = models.CharField(
         max_length=1,
         choices=Condition.choices,
@@ -132,6 +151,16 @@ class DeviceItem(models.Model):
                 name="minimum_price_lte_default_price",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.product_id:
+            try:
+                prod = self.product
+                if prod and (prod.brand.lower() == "apple" or "iphone" in prod.name.lower()):
+                    self.ram_gb = None
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
 
     def __str__(self):
         identifier = (

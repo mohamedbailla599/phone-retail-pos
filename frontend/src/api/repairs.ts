@@ -47,6 +47,7 @@ export interface RepairTicket {
   warranty_days: number;
   created_by: number;
   created_by_username: string;
+  created_by_name?: string;
   assigned_technician: number | null;
   assigned_technician_username: string | null;
   estimated_completion_date: string | null;

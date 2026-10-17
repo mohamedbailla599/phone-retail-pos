@@ -492,7 +492,7 @@ export default function POSPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products, scan barcode or IMEI..."
+                placeholder="Rechercher un produit, code-barres ou scan IMEI..."
                 className="w-full h-11 pl-10 pr-20 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-gold-border focus:ring-1 focus:ring-gold/15 transition-smooth"
                 autoFocus
                 disabled={!isDraft}
@@ -618,23 +618,36 @@ export default function POSPage() {
               <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                 {filteredCatalog.map((product) => {
                   const Icon = product.type === 'device' ? Phone : Headphones;
+                  const isLowStock = product.stock_count <= 2;
                   return (
                     <button
                       key={product.id}
                       onClick={() => handleProductClick(product)}
-                      className="group flex flex-col p-4 rounded-[var(--radius-lg)] bg-surface border border-border hover:border-gold-border/50 hover-lift text-left transition-smooth cursor-pointer"
+                      className="group flex flex-col p-3.5 rounded-[var(--radius-lg)] bg-surface border border-border hover:border-gold/50 hover:shadow-md text-left transition-all duration-200 cursor-pointer relative overflow-hidden"
                     >
-                      <div className="w-full aspect-square rounded-[var(--radius-md)] bg-surface-alt mb-3 flex items-center justify-center relative">
-                        <Icon className="w-8 h-8 text-text-muted group-hover:text-gold/60 transition-smooth" />
-                        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-surface/80 border border-border text-text-muted">
-                          {product.type === 'device' ? 'Phone' : 'Acc'}
+                      <div className="w-full h-24 rounded-[var(--radius-md)] bg-surface-elevated/70 mb-2.5 flex items-center justify-center relative border border-border/40 group-hover:border-gold/20 transition-colors">
+                        <Icon className="w-7 h-7 text-text-muted group-hover:text-gold group-hover:scale-110 transition-all duration-200" />
+                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-surface/90 border border-border text-text-muted">
+                          {product.type === 'device' ? 'Tél' : 'Acc'}
                         </span>
                       </div>
-                      <h3 className="text-[13px] font-semibold text-text truncate">{product.name}</h3>
-                      <p className="text-[11px] text-text-muted mt-0.5 truncate">{product.sub}</p>
-                      <div className="mt-2 flex items-center justify-between">
+                      <h3 className="text-xs font-semibold text-text truncate group-hover:text-gold transition-colors">
+                        {product.name}
+                      </h3>
+                      <p className="text-[11px] text-text-muted truncate min-h-[16px]">
+                        {product.sub || '—'}
+                      </p>
+                      <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between">
                         <PriceDisplay amount={parseFloat(product.price)} size="sm" highlight />
-                        <Badge variant="success" dot>{product.stock_count} In Stock</Badge>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            isLowStock
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                          }`}
+                        >
+                          {product.stock_count} en stock
+                        </span>
                       </div>
                     </button>
                   );
@@ -834,9 +847,9 @@ export default function POSPage() {
               <div className="flex justify-end mb-1 no-print">
                 <button
                   onClick={() => setIsCancelModalOpen(true)}
-                  className="text-xs font-semibold text-text-muted hover:text-red-400 flex items-center gap-1 transition-fast"
+                  className="text-xs font-semibold text-text-muted hover:text-red-400 flex items-center gap-1 transition-fast cursor-pointer"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Cancel Sale
+                  <Trash2 className="w-3.5 h-3.5" /> Annuler la vente
                 </button>
               </div>
             )}
@@ -844,11 +857,11 @@ export default function POSPage() {
             {/* Totals */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-text-secondary">Subtotal</span>
+                <span className="text-text-secondary">Sous-total</span>
                 <PriceDisplay amount={parseFloat(transaction?.subtotal || '0')} size="sm" />
               </div>
               <div className="flex justify-between text-sm items-center">
-                <span className="text-text-secondary">Discount</span>
+                <span className="text-text-secondary">Remise</span>
                 {isEditingDiscount ? (
                   <form onSubmit={handleDiscountSubmit} className="flex items-center gap-2">
                     <input
@@ -861,8 +874,8 @@ export default function POSPage() {
                       placeholder="0.00"
                       autoFocus
                     />
-                    <button type="submit" className="text-xs text-gold hover:text-gold-light">Save</button>
-                    <button type="button" onClick={() => setIsEditingDiscount(false)} className="text-xs text-text-muted hover:text-text">Cancel</button>
+                    <button type="submit" className="text-xs text-gold hover:text-gold-light cursor-pointer font-semibold">Valider</button>
+                    <button type="button" onClick={() => setIsEditingDiscount(false)} className="text-xs text-text-muted hover:text-text cursor-pointer">Annuler</button>
                   </form>
                 ) : (
                   <button 
@@ -892,7 +905,7 @@ export default function POSPage() {
             
             {isCompleted && (
               <div className="flex justify-between text-sm text-emerald-400">
-                <span>Paid</span>
+                <span>Encaissé</span>
                 <PriceDisplay amount={parseFloat(transaction?.confirmed_paid || '0')} size="sm" />
               </div>
             )}
@@ -906,7 +919,7 @@ export default function POSPage() {
                 disabled={!isCompleted}
                 onClick={handlePrint}
               >
-                Print
+                Imprimer
               </Button>
               <Button
                 variant="secondary"
@@ -915,7 +928,7 @@ export default function POSPage() {
                 onClick={handleScannerClick}
                 disabled={!isDraft}
               >
-                Pair Scanner
+                Scanner Caméra
               </Button>
             </div>
 
@@ -929,7 +942,7 @@ export default function POSPage() {
                   disabled={!transaction?.items?.length || (!isDraft && !isPendingPayment)}
                   onClick={handleCheckoutClick}
                 >
-                  {transaction?.status === 'PENDING_PAYMENT' ? 'Resume Payment' : 'Complete Payment'}
+                  {transaction?.status === 'PENDING_PAYMENT' ? 'Reprendre le paiement' : 'Finaliser la vente'}
                 </Button>
                 {transaction?.status === 'PENDING_PAYMENT' ? (
                   <div className="flex items-center justify-between gap-2 pt-1">

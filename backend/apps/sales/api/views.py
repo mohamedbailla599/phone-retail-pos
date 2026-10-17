@@ -77,10 +77,12 @@ class POSCatalogView(APIView):
                 stock_count = devices.count()
                 if stock_count > 0:
                     price = devices.aggregate(min_price=Min('default_selling_price'))['min_price']
+                    storage_set = {f"{d.storage_gb} Go" for d in devices if d.storage_gb}
+                    storage_str = " / ".join(sorted(storage_set)) if storage_set else p.brand
                     catalog.append({
                         "id": p.id,
-                        "name": p.name,
-                        "sub": f"{p.storage_gb}GB" if p.storage_gb else p.brand,
+                        "name": f"{p.brand} {p.name}",
+                        "sub": storage_str,
                         "price": str(price),
                         "type": "device",
                         "stock_count": stock_count,

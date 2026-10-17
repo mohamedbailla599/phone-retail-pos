@@ -17,6 +17,10 @@ export interface DeviceItem {
   default_selling_price: string;
   minimum_selling_price: string;
   battery_health: number | null;
+  battery_capacity_mah?: number | null;
+  storage_gb?: number | null;
+  ram_gb?: number | null;
+  color?: string | null;
   condition: string;
   status: string;
   received_at: string;

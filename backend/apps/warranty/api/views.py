@@ -37,16 +37,22 @@ class RepairTicketListCreateView(APIView):
         if status_filter and status_filter != "ALL":
             queryset = queryset.filter(status=status_filter)
 
-        # Search query
+        # Search query (multi-field & multi-keyword support)
         search_query = request.query_params.get("search", "").strip()
         if search_query:
-            queryset = queryset.filter(
-                Q(ticket_number__icontains=search_query)
-                | Q(customer_name__icontains=search_query)
-                | Q(customer_phone__icontains=search_query)
-                | Q(device_model__icontains=search_query)
-                | Q(imei_or_serial__icontains=search_query)
-            )
+            words = [w for w in search_query.split() if w]
+            for word in words:
+                queryset = queryset.filter(
+                    Q(ticket_number__icontains=word)
+                    | Q(customer_name__icontains=word)
+                    | Q(customer_phone__icontains=word)
+                    | Q(device_brand__icontains=word)
+                    | Q(device_model__icontains=word)
+                    | Q(device_color__icontains=word)
+                    | Q(imei_or_serial__icontains=word)
+                    | Q(issue_description__icontains=word)
+                    | Q(technician_notes__icontains=word)
+                )
 
         serializer = RepairTicketSerializer(queryset, many=True)
         return Response(serializer.data)

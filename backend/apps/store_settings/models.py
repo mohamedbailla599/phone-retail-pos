@@ -58,12 +58,18 @@ class StoreSettings(models.Model):
     owner_email = models.EmailField(
         blank=True,
         default="",
-        help_text="Adresse email du propriétaire pour la réception du récapitulatif quotidien à 23h00.",
+        help_text="Adresse email du propriétaire pour la réception du récapitulatif quotidien.",
     )
 
     daily_digest_enabled = models.BooleanField(
         default=True,
-        help_text="Activer l'envoi automatique du récapitulatif des ventes, stock et dettes chaque soir à 23h00.",
+        help_text="Activer l'envoi automatique du récapitulatif des ventes, stock et dettes chaque soir.",
+    )
+
+    daily_digest_time = models.CharField(
+        max_length=5,
+        default="23:00",
+        help_text="Heure programmée d'envoi automatique du bilan quotidien (format HH:MM, ex: 23:00).",
     )
 
     updated_by = models.ForeignKey(

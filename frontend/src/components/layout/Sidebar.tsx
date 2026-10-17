@@ -18,6 +18,7 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  UserCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -27,28 +28,55 @@ import { useState } from 'react';
 import OperatorSelectionModal from '../ui/OperatorSelectionModal';
 import NotificationBell from '../notifications/NotificationBell';
 
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: ShoppingCart, label: 'Point of Sale', path: '/pos' },
-  { icon: Users, label: 'Customers & Debts', path: '/customers' },
-  { icon: Smartphone, label: 'Devices', path: '/devices' },
-  { icon: Bookmark, label: 'Reservations', path: '/reservations' },
-  { icon: Package, label: 'Accessories', path: '/accessories' },
-  { icon: ArrowLeftRight, label: 'Exchanges', path: '/exchanges' },
-  { icon: RotateCcw, label: 'Returns & Refunds', path: '/returns' },
-  { icon: Wrench, label: 'Repairs', path: '/repairs' },
-  { icon: BarChart3, label: 'Reports', path: '/reports' },
-  { icon: ShieldCheck, label: 'Audit Logs', path: '/audit-logs' },
-];
+interface NavSection {
+  title: string;
+  items: {
+    icon: typeof LayoutDashboard;
+    label: string;
+    path: string;
+    badge?: string;
+  }[];
+}
 
-const bottomItems = [
-  { icon: Settings, label: 'Settings', path: '/settings' },
+const navSections: NavSection[] = [
+  {
+    title: 'Ventes & Caisse',
+    items: [
+      { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
+      { icon: ShoppingCart, label: 'Caisse (POS)', path: '/pos' },
+      { icon: Users, label: 'Clients & Dettes', path: '/customers' },
+      { icon: Bookmark, label: 'Réservations', path: '/reservations' },
+    ],
+  },
+  {
+    title: 'Stock & Matériel',
+    items: [
+      { icon: Smartphone, label: 'Appareils', path: '/devices' },
+      { icon: Package, label: 'Accessoires', path: '/accessories' },
+      { icon: ArrowLeftRight, label: 'Échanges', path: '/exchanges' },
+      { icon: RotateCcw, label: 'Retours & Avoirs', path: '/returns' },
+    ],
+  },
+  {
+    title: 'Atelier & SAV',
+    items: [
+      { icon: Wrench, label: 'Réparations', path: '/repairs' },
+    ],
+  },
+  {
+    title: 'Pilotage & Système',
+    items: [
+      { icon: BarChart3, label: 'Rapports (Ticket Z)', path: '/reports' },
+      { icon: ShieldCheck, label: "Journal d'audit", path: '/audit-logs' },
+      { icon: Settings, label: 'Paramètres', path: '/settings' },
+    ],
+  },
 ];
 
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { operator, clearAuth } = useAuthStore();
+  const { operator, user, clearAuth } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const { isCollapsed, toggleCollapsed } = useSidebarStore();
   const [isOpModalOpen, setIsOpModalOpen] = useState(false);
@@ -63,183 +91,214 @@ export default function Sidebar() {
     }
   };
 
+  const isItemActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
   return (
     <aside
       className={clsx(
-        'h-screen flex flex-col bg-surface border-r border-border flex-shrink-0 transition-all duration-300 ease-in-out select-none relative',
-        isCollapsed ? 'w-[68px]' : 'w-[230px]'
+        'h-screen flex flex-col bg-surface border-r border-border flex-shrink-0 transition-all duration-250 ease-in-out select-none relative z-30',
+        isCollapsed ? 'w-[70px]' : 'w-[240px]'
       )}
     >
-      {/* Subtle gradient overlay for depth */}
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-transparent to-[rgba(212,175,90,0.015)]" />
+      {/* Subtle ambient lighting */}
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-transparent to-gold/3" />
 
       {/* Header Logo & Collapse Button */}
       <div
         className={clsx(
-          'flex items-center transition-all duration-300 relative z-10',
-          isCollapsed ? 'px-2 py-4 flex-col gap-3 justify-center' : 'px-5 py-5 justify-between'
+          'h-[72px] flex items-center border-b border-border/80 relative z-10 flex-shrink-0',
+          isCollapsed ? 'px-2 justify-center' : 'px-5 justify-between'
         )}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-gold/10 border border-gold-border flex items-center justify-center overflow-hidden p-0.5 flex-shrink-0 shadow-sm">
-            <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover rounded-full" />
+        <Link to="/dashboard" className="flex items-center gap-3 min-w-0 group">
+          <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold-border flex items-center justify-center overflow-hidden p-0.5 flex-shrink-0 shadow-xs transition-transform group-hover:scale-105">
+            <img src="/logo.jpg" alt="Bighrissen Phone Logo" className="w-full h-full object-cover rounded-full" />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col min-w-0 overflow-hidden">
-              <span className="text-sm font-bold text-text tracking-tight leading-none truncate">Bighrissen</span>
-              <span className="text-[10px] font-semibold text-gold uppercase tracking-[0.15em] mt-0.5">Phone</span>
+              <span className="text-sm font-bold text-text tracking-tight leading-none truncate">
+                Bighrissen
+              </span>
+              <span className="text-[10px] font-bold text-gold uppercase tracking-[0.16em] mt-1">
+                Phone POS
+              </span>
             </div>
           )}
-        </div>
+        </Link>
 
         <button
           onClick={toggleCollapsed}
           type="button"
-          className="p-1.5 rounded-lg text-text-muted hover:text-gold hover:bg-gold/10 transition-colors flex-shrink-0 cursor-pointer"
-          title={isCollapsed ? 'Agrandir la barre latérale' : 'Réduire la barre latérale'}
+          className={clsx(
+            'p-1.5 rounded-lg text-text-muted hover:text-gold hover:bg-gold/10 transition-colors flex-shrink-0 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/50',
+            isCollapsed && 'hidden'
+          )}
+          title="Réduire la barre latérale"
+          aria-label="Réduire la barre latérale"
         >
-          {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          <PanelLeftClose className="w-4 h-4" />
         </button>
       </div>
 
+      {/* Collapsed expand toggle button */}
+      {isCollapsed && (
+        <div className="pt-2 flex justify-center relative z-10">
+          <button
+            onClick={toggleCollapsed}
+            type="button"
+            className="p-1.5 rounded-lg text-text-muted hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
+            title="Agrandir la barre latérale"
+            aria-label="Agrandir la barre latérale"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Quick Notifications Access */}
-      <div className={clsx('pb-2 pt-0.5 relative z-10', isCollapsed ? 'px-1.5 flex justify-center' : 'px-3')}>
+      <div className={clsx('pt-2 pb-1 relative z-10', isCollapsed ? 'px-1.5 flex justify-center' : 'px-3.5')}>
         <NotificationBell isCollapsed={isCollapsed} />
       </div>
 
-      {/* Divider */}
-      <div className={clsx('h-px bg-border relative z-10', isCollapsed ? 'mx-2' : 'mx-5')} />
+      {/* Main Nav Items with Grouped Sections */}
+      <nav className={clsx('flex-1 py-2 overflow-y-auto overflow-x-hidden relative z-10 space-y-4', isCollapsed ? 'px-1.5' : 'px-3')}>
+        {navSections.map((section, sIndex) => (
+          <div key={section.title} className="space-y-1">
+            {!isCollapsed ? (
+              <div className="px-3 pt-1 pb-1">
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
+                  {section.title}
+                </span>
+              </div>
+            ) : sIndex > 0 ? (
+              <div className="mx-2 my-2 h-px bg-border/60" />
+            ) : null}
 
-      {/* Main Nav Items */}
-      <nav className={clsx('flex-1 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden relative z-10', isCollapsed ? 'px-1.5' : 'px-3')}>
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              title={isCollapsed ? item.label : undefined}
-              className={clsx(
-                'flex items-center rounded-[var(--radius-md)] text-[12.5px] font-medium transition-all duration-200 group relative',
-                isCollapsed ? 'justify-center w-11 h-10 mx-auto' : 'gap-2.5 px-3 py-[9px]',
-                isActive
-                  ? 'bg-gold/10 text-gold border border-gold-border/50 shadow-[0_0_16px_rgba(212,175,90,0.06)] font-semibold'
-                  : 'text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent'
-              )}
-            >
-              <Icon
-                className={clsx(
-                  'w-[17px] h-[17px] flex-shrink-0 transition-all duration-200',
-                  isActive ? 'text-gold' : 'text-text-muted group-hover:text-text-secondary'
-                )}
-              />
-              {!isCollapsed && <span className="truncate">{item.label}</span>}
-              {/* Active indicator bar */}
-              {isActive && !isCollapsed && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-gold rounded-r-full" />
-              )}
-            </Link>
-          );
-        })}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const isActive = isItemActive(item.path);
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    title={isCollapsed ? item.label : undefined}
+                    className={clsx(
+                      'flex items-center rounded-[var(--radius-md)] text-[13px] font-medium transition-all duration-150 group relative select-none',
+                      isCollapsed ? 'justify-center w-11 h-10 mx-auto' : 'gap-2.5 px-3 py-2',
+                      isActive
+                        ? 'bg-gold/12 text-gold font-semibold border border-gold-border/40 shadow-xs'
+                        : 'text-text-secondary hover:text-text hover:bg-surface-elevated/70 border border-transparent'
+                    )}
+                  >
+                    <Icon
+                      className={clsx(
+                        'w-[18px] h-[18px] flex-shrink-0 transition-colors',
+                        isActive ? 'text-gold' : 'text-text-muted group-hover:text-text-secondary'
+                      )}
+                    />
+                    {!isCollapsed && (
+                      <span className="truncate flex-1">
+                        {item.label}
+                      </span>
+                    )}
+
+                    {/* Active accent pill */}
+                    {isActive && !isCollapsed && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-gold flex-shrink-0 shadow-[0_0_8px_var(--theme-gold)]" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* Bottom Nav Section */}
-      <div className={clsx('pb-4 space-y-1.5 relative z-10', isCollapsed ? 'px-1.5' : 'px-3')}>
-        <div className={clsx('mb-2 h-px bg-border', isCollapsed ? 'mx-1' : 'mx-2')} />
-
-        {/* Settings */}
-        {bottomItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              title={isCollapsed ? item.label : undefined}
-              className={clsx(
-                'flex items-center rounded-[var(--radius-md)] text-[12.5px] font-medium transition-all duration-200 group',
-                isCollapsed ? 'justify-center w-11 h-10 mx-auto' : 'gap-2.5 px-3 py-[9px]',
-                isActive
-                  ? 'bg-gold/10 text-gold border border-gold-border/50 font-semibold'
-                  : 'text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent'
-              )}
-            >
-              <Icon
-                className={clsx(
-                  'w-[17px] h-[17px] flex-shrink-0 transition-all duration-200',
-                  isActive ? 'text-gold' : 'text-text-muted group-hover:text-text-secondary'
-                )}
-              />
-              {!isCollapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
-
-        {/* Quick Theme Switcher */}
+      {/* Bottom Nav & User/Operator Section */}
+      <div className={clsx('p-3 border-t border-border/80 bg-surface/80 backdrop-blur-xs relative z-10 space-y-2', isCollapsed && 'px-1.5 py-3')}>
+        {/* Theme Switcher */}
         {!isCollapsed ? (
-          <div className="mt-1.5 mx-1 px-3 py-2 rounded-[var(--radius-md)] bg-surface-alt/50 border border-border/80 flex items-center justify-between text-xs transition-colors">
-            <div className="flex items-center gap-2">
+          <div className="px-2.5 py-1.5 rounded-[var(--radius-md)] bg-surface-alt/60 border border-border/70 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-text-secondary text-[11px] font-medium">
               {resolvedTheme === 'dark' ? (
-                <Moon className="w-3.5 h-3.5 text-gold flex-shrink-0" />
+                <Moon className="w-3.5 h-3.5 text-gold" />
               ) : (
-                <Sun className="w-3.5 h-3.5 text-gold flex-shrink-0" />
+                <Sun className="w-3.5 h-3.5 text-gold" />
               )}
-              <span className="text-[11px] font-medium text-text-secondary">
-                {resolvedTheme === 'dark' ? 'Mode Sombre' : 'Mode Clair'}
-              </span>
+              <span>{resolvedTheme === 'dark' ? 'Mode Sombre' : 'Mode Clair'}</span>
             </div>
             <button
               onClick={toggleTheme}
               type="button"
               className="p-1 rounded-md text-text-muted hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
-              title={resolvedTheme === 'dark' ? 'Passer en Mode Clair' : 'Passer en Mode Sombre'}
+              title={resolvedTheme === 'dark' ? 'Basculer en Mode Clair' : 'Basculer en Mode Sombre'}
             >
               {resolvedTheme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
           </div>
         ) : (
-          <div className="mt-1 flex justify-center">
+          <div className="flex justify-center">
             <button
               onClick={toggleTheme}
               type="button"
-              className="w-10 h-10 rounded-[var(--radius-md)] bg-surface-alt/70 border border-border flex items-center justify-center text-gold hover:bg-gold/10 transition-colors cursor-pointer"
-              title={resolvedTheme === 'dark' ? 'Passer en Mode Clair' : 'Passer en Mode Sombre'}
+              className="w-9 h-9 rounded-lg bg-surface-alt border border-border flex items-center justify-center text-gold hover:bg-gold/10 transition-colors cursor-pointer"
+              title={resolvedTheme === 'dark' ? 'Basculer en Mode Clair' : 'Basculer en Mode Sombre'}
             >
               {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
         )}
 
-        {/* Operator indicator & Logout */}
+        {/* Operator Profile Block */}
         {!isCollapsed ? (
-          <div className="mt-1.5 mx-1 p-3 rounded-[var(--radius-md)] bg-surface-alt/30 border border-border/80 flex items-center justify-between group">
+          <div className="p-2 rounded-[var(--radius-md)] bg-surface-elevated/80 border border-border flex items-center justify-between gap-2 shadow-xs">
             <button
-              className="text-left flex-1 hover:opacity-80 transition-opacity min-w-0 cursor-pointer"
+              type="button"
               onClick={() => setIsOpModalOpen(true)}
+              className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-85 transition-opacity cursor-pointer flex-1"
+              title="Changer d'opérateur de caisse"
             >
-              <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Operator</p>
-              <p className="text-xs font-semibold text-text mt-0.5 truncate">{operator?.display_name || 'Not selected'}</p>
+              <div className="w-8 h-8 rounded-full bg-gold/15 border border-gold-border/60 text-gold font-bold text-xs flex items-center justify-center flex-shrink-0">
+                {operator?.display_name ? operator.display_name.charAt(0).toUpperCase() : (user?.username?.charAt(0).toUpperCase() || 'U')}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold text-text truncate">
+                  {operator?.display_name || user?.display_name || user?.username || 'Opérateur'}
+                </div>
+                <div className="text-[10px] text-text-muted flex items-center gap-1">
+                  <UserCheck className="w-3 h-3 text-emerald-500" />
+                  <span>En session</span>
+                </div>
+              </div>
             </button>
+
             <button
               onClick={handleLogout}
-              title="Log out"
-              className="p-1.5 rounded-[var(--radius-sm)] text-text-muted hover:text-red-400 hover:bg-danger/10 transition-colors flex-shrink-0 cursor-pointer"
+              type="button"
+              title="Se déconnecter"
+              className="p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-danger/10 transition-colors flex-shrink-0 cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
         ) : (
-          <div className="mt-1.5 flex flex-col items-center gap-1 pt-1">
+          <div className="flex flex-col items-center gap-1.5 pt-1">
             <button
+              type="button"
               onClick={() => setIsOpModalOpen(true)}
-              className="w-9 h-9 rounded-full bg-gold/15 border border-gold-border text-gold font-bold text-xs flex items-center justify-center hover:scale-105 transition-transform cursor-pointer shadow-sm"
-              title={`Opérateur : ${operator?.display_name || 'Non sélectionné'} (cliquer pour changer)`}
+              className="w-9 h-9 rounded-full bg-gold/15 border border-gold-border text-gold font-bold text-xs flex items-center justify-center hover:scale-105 transition-transform cursor-pointer shadow-xs"
+              title={`Opérateur: ${operator?.display_name || user?.username || 'N/A'} (cliquer pour changer)`}
             >
-              {operator?.display_name ? operator.display_name.charAt(0).toUpperCase() : 'OP'}
+              {operator?.display_name ? operator.display_name.charAt(0).toUpperCase() : (user?.username?.charAt(0).toUpperCase() || 'U')}
             </button>
             <button
               onClick={handleLogout}
+              type="button"
               title="Se déconnecter"
               className="p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-danger/10 transition-colors cursor-pointer"
             >
@@ -253,8 +312,8 @@ export default function Sidebar() {
         isOpen={isOpModalOpen}
         onClose={() => setIsOpModalOpen(false)}
         onSelect={() => setIsOpModalOpen(false)}
-        title="Select Operator"
-        description="Switch the current operating context."
+        title="Sélectionner l'Opérateur"
+        description="Choisir le profil effectuant les opérations de caisse."
       />
     </aside>
   );

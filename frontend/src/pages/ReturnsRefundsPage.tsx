@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import Sidebar from '../components/layout/Sidebar';
 import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
 import {
   returnsApi,
   type ReturnRecord,
@@ -11,6 +9,11 @@ import {
 } from '../api/returns';
 import CreateReturnModal from '../components/returns/CreateReturnModal';
 import ProcessReturnModal, { type ReturnActionType } from '../components/returns/ProcessReturnModal';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
+import StatCard from '../components/ui/StatCard';
+import StatusBadge from '../components/ui/StatusBadge';
+import { formatCurrency, formatDate } from '../utils/formatters';
 import {
   RotateCcw,
   Plus,
@@ -163,114 +166,45 @@ export default function ReturnsRefundsPage() {
     return matchSearch && matchStatus;
   });
 
-  const getReturnStatusBadge = (status: ReturnStatus) => {
-    switch (status) {
-      case 'REQUESTED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Clock className="w-3 h-3" />
-            En attente
-          </span>
-        );
-      case 'APPROVED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <CheckCircle2 className="w-3 h-3" />
-            Approuvé
-          </span>
-        );
-      case 'RESTOCKED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            <PackageCheck className="w-3 h-3" />
-            Restocké
-          </span>
-        );
-      case 'REFUNDED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <Coins className="w-3 h-3" />
-            Remboursé
-          </span>
-        );
-      case 'REJECTED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-            <XCircle className="w-3 h-3" />
-            Rejeté
-          </span>
-        );
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
+  const getReturnStatusBadge = (status: ReturnStatus) => (
+    <StatusBadge status={status} />
+  );
 
-  const getRefundStatusBadge = (status: RefundStatus) => {
-    switch (status) {
-      case 'REQUESTED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Clock className="w-3 h-3" />
-            Demandé
-          </span>
-        );
-      case 'APPROVED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <CheckCircle2 className="w-3 h-3" />
-            Approuvé (À décaisser)
-          </span>
-        );
-      case 'COMPLETED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <Coins className="w-3 h-3" />
-            Clôturé (Décaissé)
-          </span>
-        );
-      case 'REJECTED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-            <XCircle className="w-3 h-3" />
-            Rejeté
-          </span>
-        );
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
+  const getRefundStatusBadge = (status: RefundStatus) => (
+    <StatusBadge
+      status={status}
+      label={
+        status === 'APPROVED'
+          ? 'Approuvé (À décaisser)'
+          : status === 'COMPLETED'
+          ? 'Clôturé (Décaissé)'
+          : status === 'REQUESTED'
+          ? 'Demandé'
+          : undefined
+      }
+    />
+  );
 
   return (
-    <div className="flex h-screen bg-bg">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <div className="p-6 max-w-7xl mx-auto space-y-6 w-full">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gold/10 border border-gold-border flex items-center justify-center text-gold shadow-[0_0_15px_rgba(212,175,90,0.15)]">
-                <RotateCcw className="w-6 h-6" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-text flex items-center gap-2">
-                  Retours & Remboursements
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gold/15 text-gold border border-gold-border font-medium">
-                    SAV
-                  </span>
-                </h1>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Gestion des retours articles, réintégrations au stock et sorties de caisse
-                </p>
-              </div>
-            </div>
-
+    <PageContainer
+      header={
+        <PageHeader
+          title="Retours & Remboursements"
+          subtitle="Gestion des retours articles, réintégrations au stock et sorties de caisse"
+          icon={RotateCcw}
+          badge={
+            <span className="text-xs font-mono font-semibold text-gold px-2.5 py-0.5 rounded-full bg-gold/10 border border-gold-border">
+              SAV
+            </span>
+          }
+          actions={
             <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={loadData}
                 loading={loading}
-                className="gap-1.5 text-xs h-9"
+                className="gap-1.5 text-xs h-9 focus-ring"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Actualiser
@@ -280,91 +214,55 @@ export default function ReturnsRefundsPage() {
                 variant="primary"
                 size="sm"
                 onClick={() => setIsCreateReturnOpen(true)}
-                className="gap-1.5 text-xs h-9"
+                className="gap-1.5 text-xs h-9 focus-ring"
               >
                 <Plus className="w-4 h-4" />
                 Nouveau Retour
               </Button>
             </div>
+          }
+        />
+      }
+    >
+      <div className="space-y-6">
+        {error && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-danger/10 border border-danger/30 text-danger text-xs">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
           </div>
+        )}
 
-          {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-danger/10 border border-danger/30 text-danger text-xs">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Metric Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-surface border border-border flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block">
-                  Total Retours
-                </span>
-                <span className="text-xl font-extrabold text-text mt-1 block">
-                  {totalReturnsCount}
-                </span>
-                <span className="text-[10px] text-text-muted mt-0.5 block">
-                  Toutes périodes
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-text-secondary">
-                <RotateCcw className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-surface border border-border flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block">
-                  En Attente d'Action
-                </span>
-                <span className="text-xl font-extrabold text-amber-400 mt-1 block">
-                  {pendingReturnsCount}
-                </span>
-                <span className="text-[10px] text-text-muted mt-0.5 block">
-                  Nécessitent validation
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                <Clock className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-surface border border-border flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block">
-                  Articles Réintégrés
-                </span>
-                <span className="text-xl font-extrabold text-purple-400 mt-1 block">
-                  {restockedCount}
-                </span>
-                <span className="text-[10px] text-text-muted mt-0.5 block">
-                  Remis en stock boutique
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                <PackageCheck className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-surface border border-border flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block">
-                  Total Décaissé
-                </span>
-                <span className="text-xl font-extrabold text-gold mt-1 block font-mono">
-                  {totalRefundedAmount.toLocaleString()} DH
-                </span>
-                <span className="text-[10px] text-emerald-400 mt-0.5 block">
-                  Remboursements clôturés
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold-border flex items-center justify-center text-gold">
-                <Coins className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
+        {/* Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="Total Retours"
+            value={totalReturnsCount}
+            subValue="Toutes périodes"
+            icon={RotateCcw}
+            variant="neutral"
+          />
+          <StatCard
+            label="En Attente d'Action"
+            value={pendingReturnsCount}
+            subValue="Nécessitent validation"
+            icon={Clock}
+            variant="amber"
+          />
+          <StatCard
+            label="Articles Réintégrés"
+            value={restockedCount}
+            subValue="Remis en stock boutique"
+            icon={PackageCheck}
+            variant="purple"
+          />
+          <StatCard
+            label="Total Décaissé"
+            value={formatCurrency(totalRefundedAmount)}
+            subValue="Remboursements clôturés"
+            icon={Coins}
+            variant="gold"
+          />
+        </div>
 
           {/* Tab Switcher & Search Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
@@ -447,7 +345,7 @@ export default function ReturnsRefundsPage() {
                       <th className="py-3 px-4">Ticket Vente</th>
                       <th className="py-3 px-4">Client</th>
                       <th className="py-3 px-4">Article Retourné</th>
-                      <th className="py-3 px-4">Montant</th>
+                      <th className="py-3 px-4 text-right">Montant</th>
                       <th className="py-3 px-4">Statut</th>
                       <th className="py-3 px-4">Motif</th>
                       <th className="py-3 px-4 text-right">Actions</th>
@@ -476,7 +374,7 @@ export default function ReturnsRefundsPage() {
                               </span>
                               <span className="text-[10px] text-text-muted flex items-center gap-1 mt-0.5">
                                 <Calendar className="w-3 h-3" />
-                                {new Date(ret.created_at).toLocaleDateString('fr-FR')}
+                                {formatDate(ret.created_at)}
                               </span>
                             </td>
 
@@ -517,13 +415,13 @@ export default function ReturnsRefundsPage() {
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-text-muted">-</span>
+                                <span className="text-text-muted">—</span>
                               )}
                             </td>
 
                             {/* Montant */}
-                            <td className="py-3.5 px-4 font-mono font-bold text-gold">
-                              {parseFloat(ret.total_amount).toLocaleString()} DH
+                            <td className="py-3.5 px-4 font-bold text-gold text-right tabular-nums">
+                              {formatCurrency(parseFloat(ret.total_amount))}
                             </td>
 
                             {/* Statut */}
@@ -537,7 +435,7 @@ export default function ReturnsRefundsPage() {
                                 className="text-[11px] text-text-secondary truncate block"
                                 title={ret.reason}
                               >
-                                {ret.reason || '-'}
+                                {ret.reason || '—'}
                               </span>
                             </td>
 
@@ -638,7 +536,7 @@ export default function ReturnsRefundsPage() {
                       <th className="py-3 px-4">N° Remboursement</th>
                       <th className="py-3 px-4">Source & Référence</th>
                       <th className="py-3 px-4">Client</th>
-                      <th className="py-3 px-4">Montant</th>
+                      <th className="py-3 px-4 text-right">Montant</th>
                       <th className="py-3 px-4">Mode de Paiement</th>
                       <th className="py-3 px-4">Statut</th>
                       <th className="py-3 px-4">Opérateur</th>
@@ -665,7 +563,7 @@ export default function ReturnsRefundsPage() {
                             </span>
                             <span className="text-[10px] text-text-muted flex items-center gap-1 mt-0.5">
                               <Calendar className="w-3 h-3" />
-                              {new Date(rf.requested_at).toLocaleDateString('fr-FR')}
+                              {formatDate(rf.requested_at)}
                             </span>
                           </td>
 
@@ -694,8 +592,8 @@ export default function ReturnsRefundsPage() {
                           </td>
 
                           {/* Montant */}
-                          <td className="py-3.5 px-4 font-mono font-bold text-gold">
-                            {parseFloat(rf.amount).toLocaleString()} DH
+                          <td className="py-3.5 px-4 font-bold text-gold text-right tabular-nums">
+                            {formatCurrency(parseFloat(rf.amount))}
                           </td>
 
                           {/* Mode */}
@@ -722,7 +620,7 @@ export default function ReturnsRefundsPage() {
 
                           {/* Opérateur */}
                           <td className="py-3.5 px-4 text-text-secondary text-[11px]">
-                            {rf.completed_by_name || rf.requested_by_name || '-'}
+                            {rf.completed_by_name || rf.requested_by_name || '—'}
                           </td>
 
                           {/* Actions */}
@@ -733,7 +631,7 @@ export default function ReturnsRefundsPage() {
                                   type="button"
                                   onClick={() => handleApproveRefund(rf.id)}
                                   disabled={processingRefundId === rf.id}
-                                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+                                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:bg-blue-500/10 transition-colors disabled:opacity-50 focus-ring"
                                 >
                                   <CheckCircle2 className="w-3 h-3" />
                                   Approuver
@@ -746,7 +644,7 @@ export default function ReturnsRefundsPage() {
                                   size="sm"
                                   onClick={() => handleCompleteRefund(rf.id)}
                                   loading={processingRefundId === rf.id}
-                                  className="h-7 px-2.5 text-[11px] gap-1"
+                                  className="h-7 px-2.5 text-[11px] gap-1 focus-ring"
                                 >
                                   <Coins className="w-3 h-3" />
                                   Clôturer Sortie Caisse
@@ -755,7 +653,7 @@ export default function ReturnsRefundsPage() {
 
                               {rf.status === 'COMPLETED' && (
                                 <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 justify-end">
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                <CheckCircle2 className="w-3.5 h-3.5" />
                                   Décaissé
                                 </span>
                               )}
@@ -769,31 +667,30 @@ export default function ReturnsRefundsPage() {
               </div>
             </div>
           )}
-
-          {/* Modal Création Retour */}
-          <CreateReturnModal
-            isOpen={isCreateReturnOpen}
-            onClose={() => setIsCreateReturnOpen(false)}
-            onSuccess={() => {
-              loadData();
-            }}
-          />
-
-          {/* Modal Traitement Retour */}
-          <ProcessReturnModal
-            isOpen={isProcessModalOpen}
-            onClose={() => {
-              setIsProcessModalOpen(false);
-              setSelectedReturnForAction(null);
-            }}
-            returnRecord={selectedReturnForAction}
-            actionType={returnActionType}
-            onSuccess={() => {
-              loadData();
-            }}
-          />
         </div>
-      </div>
-    </div>
+
+        {/* Modal Création Retour */}
+        <CreateReturnModal
+          isOpen={isCreateReturnOpen}
+          onClose={() => setIsCreateReturnOpen(false)}
+          onSuccess={() => {
+            loadData();
+          }}
+        />
+
+        {/* Modal Traitement Retour */}
+        <ProcessReturnModal
+          isOpen={isProcessModalOpen}
+          onClose={() => {
+            setIsProcessModalOpen(false);
+            setSelectedReturnForAction(null);
+          }}
+          returnRecord={selectedReturnForAction}
+          actionType={returnActionType}
+          onSuccess={() => {
+            loadData();
+          }}
+        />
+    </PageContainer>
   );
 }

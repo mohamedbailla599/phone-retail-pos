@@ -108,25 +108,25 @@ class WarrantyClaim(models.Model):
 
 class RepairTicket(models.Model):
     class IssueType(models.TextChoices):
-        SCREEN = "SCREEN", "Screen / Display Replacement"
-        BATTERY = "BATTERY", "Battery Replacement"
-        CHARGING_PORT = "CHARGING_PORT", "Charging Port / Dock"
-        BACK_GLASS = "BACK_GLASS", "Back Glass / Housing"
-        CAMERA = "CAMERA", "Camera / Lens"
-        WATER_DAMAGE = "WATER_DAMAGE", "Water / Liquid Damage"
-        SPEAKER_MIC = "SPEAKER_MIC", "Speaker / Earpiece / Mic"
-        SOFTWARE = "SOFTWARE", "Software / Unlocking / Flashing"
-        MOTHERBOARD = "MOTHERBOARD", "Motherboard / Micro-soldering"
-        OTHER = "OTHER", "Other / General Diagnosis"
+        SCREEN = "SCREEN", "Écran / Vitre cassée"
+        BATTERY = "BATTERY", "Batterie / Autonomie"
+        CHARGING_PORT = "CHARGING_PORT", "Connecteur de charge / Port"
+        BACK_GLASS = "BACK_GLASS", "Vitre arrière / Châssis"
+        CAMERA = "CAMERA", "Caméra / Lentille"
+        WATER_DAMAGE = "WATER_DAMAGE", "Oxydation / Dégât des eaux"
+        SPEAKER_MIC = "SPEAKER_MIC", "Micro / Haut-parleur / Écouteur"
+        SOFTWARE = "SOFTWARE", "Système / Déblocage / Flash"
+        MOTHERBOARD = "MOTHERBOARD", "Carte Mère / Micro-soudure"
+        OTHER = "OTHER", "Autre panne / Diagnostic global"
 
     class Status(models.TextChoices):
-        RECEIVED = "RECEIVED", "Received"
-        DIAGNOSING = "DIAGNOSING", "Diagnosing"
-        WAITING_PARTS = "WAITING_PARTS", "Waiting for Parts"
-        IN_PROGRESS = "IN_PROGRESS", "In Progress"
-        READY = "READY", "Ready for Pickup"
-        DELIVERED = "DELIVERED", "Delivered & Paid"
-        CANCELLED = "CANCELLED", "Cancelled"
+        RECEIVED = "RECEIVED", "Reçu"
+        DIAGNOSING = "DIAGNOSING", "En diagnostic"
+        WAITING_PARTS = "WAITING_PARTS", "En attente de pièces"
+        IN_PROGRESS = "IN_PROGRESS", "En cours de réparation"
+        READY = "READY", "Prêt pour retrait"
+        DELIVERED = "DELIVERED", "Livré & Clôturé"
+        CANCELLED = "CANCELLED", "Annulé"
 
     ticket_number = models.CharField(
         max_length=30,

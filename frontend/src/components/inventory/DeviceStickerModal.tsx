@@ -3,6 +3,7 @@ import JsBarcode from 'jsbarcode';
 import { X, Printer, Check, Smartphone, Settings2, Info } from 'lucide-react';
 import { printDeviceSticker } from '../../utils/printSticker';
 import { useSettingsStore } from '../../store/settingsStore';
+import PhoneColorDot from '../ui/PhoneColorDot';
 
 export interface DeviceStickerData {
   id?: number;
@@ -13,6 +14,9 @@ export interface DeviceStickerData {
     storage_gb?: number | null;
     ram_gb?: number | null;
   };
+  storage_gb?: number | null;
+  ram_gb?: number | null;
+  color?: string | null;
   imei_1?: string | null;
   imei_2?: string | null;
   serial_number?: string | null;
@@ -96,9 +100,15 @@ export default function DeviceStickerModal({
   const generateStickerHtml = () => {
     const storeName = settings?.store_name || 'BIGHRISSEN PHONE';
     const productName = `${device.product.brand} ${device.product.name}`;
-    const storageText = device.product.storage_gb ? `${device.product.storage_gb}GB` : '';
-    const ramText = device.product.ram_gb ? `${device.product.ram_gb}GB RAM` : '';
-    const specsArray = [storageText, ramText].filter(Boolean);
+    const isApple =
+      device.product.brand?.toLowerCase() === 'apple' ||
+      device.product.name?.toLowerCase().includes('iphone');
+    const storageVal = device.storage_gb ?? device.product.storage_gb;
+    const ramVal = isApple ? null : (device.ram_gb ?? device.product.ram_gb);
+    const storageText = storageVal ? `${storageVal}GB` : '';
+    const ramText = ramVal ? `${ramVal}GB RAM` : '';
+    const colorText = device.color ? device.color : '';
+    const specsArray = [storageText, ramText, colorText].filter(Boolean);
     const specsString = specsArray.length > 0 ? ` - ${specsArray.join(' / ')}` : '';
 
     const conditionText =
@@ -323,10 +333,16 @@ export default function DeviceStickerModal({
                   </div>
                   <div className="font-bold text-[11px] leading-tight text-neutral-900">
                     {device.product.brand} {device.product.name}
-                    {device.product.storage_gb && (
-                      <span className="text-[9.5px] text-neutral-800 font-normal">
+                    {(device.storage_gb ?? device.product.storage_gb) && (
+                      <span className="text-[9.5px] text-neutral-800 font-semibold">
                         {' '}
-                        • {device.product.storage_gb}GB
+                        • {device.storage_gb ?? device.product.storage_gb}GB
+                      </span>
+                    )}
+                    {device.color && (
+                      <span className="text-[9.5px] text-neutral-700 font-normal inline-flex items-center gap-1">
+                        {' '}
+                        • <PhoneColorDot color={device.color} size="xs" /> {device.color}
                       </span>
                     )}
                   </div>

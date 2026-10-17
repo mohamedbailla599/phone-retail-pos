@@ -49,6 +49,9 @@ class StoreSettingsDetailView(APIView):
             "default_device_warranty_months",
             "default_accessory_warranty_months",
             "default_reservation_months",
+            "owner_email",
+            "daily_digest_enabled",
+            "daily_digest_time",
         ]
         old_values = {}
         for field in tracked_fields:

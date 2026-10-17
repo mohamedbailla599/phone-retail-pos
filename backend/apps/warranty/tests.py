@@ -74,11 +74,29 @@ class RepairTicketAPITests(TestCase):
         self.assertEqual(len(res.data), 1)
         self.assertEqual(res.data[0]["ticket_number"], "BP-REP-2026-000002")
 
-        # Search filter
+        # Search filter by model
         res_search = self.client.get("/api/warranty/repairs/?search=Galaxy")
         self.assertEqual(res_search.status_code, 200)
         self.assertEqual(len(res_search.data), 1)
         self.assertEqual(res_search.data[0]["customer_name"], "Reda Bennani")
+
+        # Search by Brand
+        res_brand = self.client.get("/api/warranty/repairs/?search=Apple")
+        self.assertEqual(res_brand.status_code, 200)
+        self.assertEqual(len(res_brand.data), 1)
+        self.assertEqual(res_brand.data[0]["ticket_number"], "BP-REP-2026-000002")
+
+        # Multi-word search (Brand + Model)
+        res_multi = self.client.get("/api/warranty/repairs/?search=Samsung Ultra")
+        self.assertEqual(res_multi.status_code, 200)
+        self.assertEqual(len(res_multi.data), 1)
+        self.assertEqual(res_multi.data[0]["customer_name"], "Reda Bennani")
+
+        # Search by issue description
+        res_issue = self.client.get("/api/warranty/repairs/?search=gonflée")
+        self.assertEqual(res_issue.status_code, 200)
+        self.assertEqual(len(res_issue.data), 1)
+        self.assertEqual(res_issue.data[0]["customer_name"], "Reda Bennani")
 
     def test_update_repair_status_pipeline(self):
         ticket = RepairTicket.objects.create(

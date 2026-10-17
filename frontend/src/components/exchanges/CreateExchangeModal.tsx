@@ -12,6 +12,7 @@ import type { Product } from '../../api/catalog';
 import { inventoryApi } from '../../api/inventory';
 import type { DeviceItem } from '../../api/inventory';
 import { exchangeApi } from '../../api/exchanges';
+import BarcodeScannerModal from '../ui/BarcodeScannerModal';
 import { 
   ArrowLeftRight, 
   ArrowDownLeft, 
@@ -20,7 +21,8 @@ import {
   Battery, 
   Search,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Camera
 } from 'lucide-react';
 
 interface CreateExchangeModalProps {
@@ -53,7 +55,7 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [customerSearchResults, setCustomerSearchResults] = useState<SearchableSelectOption[]>([]);
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
-  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [showCustomerSearch, setShowCustomerSearch] = useState(true);
 
   // 2. Trade-in Device State (Customer phone)
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
@@ -63,6 +65,7 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
   const [tradeInCondition, setTradeInCondition] = useState('A');
   const [tradeInBatteryHealth, setTradeInBatteryHealth] = useState<string>('');
   const [tradeInValue, setTradeInValue] = useState<string>('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // 3. New Device State (Store phone)
   const [inStockDevices, setInStockDevices] = useState<DeviceItem[]>([]);
@@ -73,14 +76,23 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
   // 4. Notes / Reason
   const [reason, setReason] = useState('');
 
-  // Reset or load initial data when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setError(null);
-      fetchCatalogProducts('');
-      fetchInStockDevices('');
+  const fetchCustomers = useCallback(async (query: string = '') => {
+    try {
+      setIsSearchingCustomers(true);
+      const customers = await customerApi.getCustomers(query.trim() || undefined);
+      setCustomerSearchResults(
+        customers.map((c: Customer) => ({
+          value: c.id.toString(),
+          label: `${c.full_name} (${c.phone_number})`,
+          description: `Total Spent: MAD ${c.total_spent || 0}${c.current_debt && parseFloat(c.current_debt) > 0 ? ` • Debt: MAD ${c.current_debt}` : ''}`,
+        }))
+      );
+    } catch (err) {
+      console.error('Failed to search customers', err);
+    } finally {
+      setIsSearchingCustomers(false);
     }
-  }, [isOpen]);
+  }, []);
 
   const fetchCatalogProducts = useCallback(async (query: string = '') => {
     try {
@@ -112,27 +124,15 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
     }
   }, []);
 
-  const handleSearchCustomer = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setCustomerSearchResults([]);
-      return;
+  // Reset or load initial data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setError(null);
+      fetchCatalogProducts('');
+      fetchInStockDevices('');
+      fetchCustomers('');
     }
-    try {
-      setIsSearchingCustomers(true);
-      const customers = await customerApi.getCustomers(query);
-      setCustomerSearchResults(
-        customers.map((c: Customer) => ({
-          value: c.id.toString(),
-          label: `${c.full_name} (${c.phone_number})`,
-          description: `Total Spent: MAD ${c.total_spent || 0}`,
-        }))
-      );
-    } catch (err) {
-      console.error('Failed to search customers', err);
-    } finally {
-      setIsSearchingCustomers(false);
-    }
-  }, []);
+  }, [isOpen, fetchCatalogProducts, fetchInStockDevices, fetchCustomers]);
 
   const handleSelectCustomer = (customerIdStr: string) => {
     const id = parseInt(customerIdStr, 10);
@@ -146,7 +146,6 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
         setCustomerPhone(match[2].trim());
       }
     }
-    setShowCustomerSearch(false);
   };
 
   // Convert catalog products to select options
@@ -294,25 +293,60 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
               </div>
               <button
                 type="button"
-                onClick={() => setShowCustomerSearch(!showCustomerSearch)}
-                className="text-xs text-gold hover:text-gold-bright flex items-center gap-1 transition-colors"
+                onClick={() => {
+                  const nextState = !showCustomerSearch;
+                  setShowCustomerSearch(nextState);
+                  if (nextState) {
+                    fetchCustomers('');
+                  }
+                }}
+                className="text-xs text-gold hover:text-gold-bright flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <Search className="w-3.5 h-3.5" />
-                {showCustomerSearch ? 'Manual Entry' : 'Look up Existing Customer'}
+                {showCustomerSearch ? 'Manual Entry Only' : 'Search Saved Customers'}
               </button>
             </div>
 
             {showCustomerSearch && (
               <div className="p-3 bg-surface-alt rounded-lg border border-border-subtle space-y-2">
-                <label className="block text-xs font-medium text-text-secondary">Search Customer Profile</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Search Customer Profile (Saved in system)
+                  </label>
+                  {customerSearchResults.length > 0 && (
+                    <span className="text-[11px] text-text-muted">
+                      {customerSearchResults.length} client(s) répertorié(s)
+                    </span>
+                  )}
+                </div>
                 <SearchableSelect
                   value={selectedCustomerId?.toString() || ''}
                   onChange={handleSelectCustomer}
                   options={customerSearchResults}
-                  onSearch={handleSearchCustomer}
-                  placeholder="Type name or phone number..."
+                  onSearch={fetchCustomers}
+                  placeholder="Type name or phone number (e.g. Mohamed, 06...)..."
+                  emptyMessage="No saved customers found"
                   loading={isSearchingCustomers}
                 />
+                {selectedCustomerId && (
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                    <span className="text-emerald-400 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Client sélectionné : <strong className="text-emerald-300">{customerName}</strong> ({customerPhone})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCustomerId(null);
+                        setCustomerName('');
+                        setCustomerPhone('');
+                      }}
+                      className="text-text-muted hover:text-danger text-[11px] underline cursor-pointer"
+                    >
+                      Délier
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -384,17 +418,34 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">
-                  IMEI / Serial <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={tradeInImei}
-                  onChange={(e) => setTradeInImei(e.target.value)}
-                  placeholder="15-digit IMEI or Serial number"
-                  className="w-full h-10 px-3 font-mono bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    IMEI / Serial <span className="text-danger">*</span>
+                  </label>
+                  <span className="text-[11px] text-text-muted flex items-center gap-1">
+                    <Camera className="w-3 h-3 text-gold" />
+                    Caméra ou douchette
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={tradeInImei}
+                    onChange={(e) => setTradeInImei(e.target.value)}
+                    placeholder="15-digit IMEI or Serial number"
+                    className="w-full h-10 pl-3 pr-20 font-mono bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsScannerOpen(true)}
+                    title="Scanner IMEI ou numéro de série avec la caméra"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 px-2.5 bg-gold/15 hover:bg-gold/25 border border-gold-border/60 text-gold rounded text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span className="text-[11px]">Scan</span>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -647,6 +698,18 @@ export function CreateExchangeModal({ isOpen, onClose, onSuccess }: CreateExchan
         isOpen={isOperatorModalOpen}
         onClose={onOperatorModalClose}
         onSelect={onOperatorSelected}
+      />
+
+      {/* Barcode / Camera Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={(code: string) => {
+          setTradeInImei(code.trim());
+          setIsScannerOpen(false);
+        }}
+        title="Scanner IMEI / Série (Appareil Client)"
+        expectedType="imei"
       />
     </>
   );

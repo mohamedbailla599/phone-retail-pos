@@ -124,9 +124,15 @@ def get_daily_digest_data(target_date=None) -> dict:
     # Store Settings
     store_settings = StoreSettings.objects.first()
     store_name = store_settings.store_name if store_settings else "Bighrissen Phone"
+    scheduled_time = (
+        store_settings.daily_digest_time
+        if store_settings and hasattr(store_settings, "daily_digest_time") and store_settings.daily_digest_time
+        else "23:00"
+    )
 
     return {
         "store_name": store_name,
+        "scheduled_time": scheduled_time,
         "date_str": target_date.strftime("%d/%m/%Y"),
         "total_sales_count": total_sales_count,
         "total_revenue": total_revenue,
@@ -143,9 +149,10 @@ def get_daily_digest_data(target_date=None) -> dict:
 
 
 def render_daily_digest_html(data: dict) -> str:
-    """Renders a modern, responsive HTML email for the 23:00 daily digest."""
+    """Renders a modern, responsive HTML email for the daily digest."""
     store_name = data["store_name"]
     date_str = data["date_str"]
+    scheduled_time = data.get("scheduled_time", "23:00")
 
     # Device rows
     device_rows = ""
@@ -238,7 +245,7 @@ def render_daily_digest_html(data: dict) -> str:
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #d4af5a; font-weight: 700;">Rapport de Cloture 23h00</span>
+                        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #d4af5a; font-weight: 700;">Rapport de Cloture {scheduled_time}</span>
                         <h1 style="margin: 4px 0 0 0; font-size: 22px; color: #ffffff; font-weight: 800;">{store_name}</h1>
                       </td>
                       <td align="right">
@@ -326,7 +333,7 @@ def render_daily_digest_html(data: dict) -> str:
               <!-- Footer -->
               <tr>
                 <td style="padding: 18px 30px; background-color: #18181b; border-top: 1px solid #27272a; text-align: center; color: #71717a; font-size: 11px;">
-                  Genere automatiquement a 23h00 par <strong>Bighrissen Phone ERP</strong> - Systeme Local
+                  Genere automatiquement a {scheduled_time} par <strong>Bighrissen Phone ERP</strong> - Systeme Local
                 </td>
               </tr>
 
@@ -374,10 +381,11 @@ def send_daily_digest(recipient_email=None, target_date=None, force=False) -> di
         logger.info(f"Daily digest sent successfully to {recipient_email}")
 
         # Also log a SYSTEM notification in the app
+        scheduled_time = data.get("scheduled_time", "23:00")
         Notification.objects.create(
             category=Notification.Category.SYSTEM,
             severity=Notification.Severity.INFO,
-            title=f"Recapitulatif 23h00 envoye ({data['date_str']})",
+            title=f"Recapitulatif {scheduled_time} envoye ({data['date_str']})",
             message=f"Le rapport de cloture quotidienne a ete genere et expedie a {recipient_email}.",
             action_url="/dashboard",
         )

@@ -101,8 +101,39 @@ export function printThermalReceipt(contentHtml: string, title: string = 'Receip
           .mt-2 { margin-top: 8px; }
           .mb-1 { margin-bottom: 4px; }
           .mb-2 { margin-bottom: 8px; }
+          .my-1 { margin-top: 4px; margin-bottom: 4px; }
+          .my-2 { margin-top: 8px; margin-bottom: 8px; }
+          .my-3 { margin-top: 12px; margin-bottom: 12px; }
           .muted { color: #333333; }
           .mono { font-family: monospace; }
+          .barcode-container { display: flex; justify-content: center; align-items: center; width: 100%; margin: 4px 0; }
+          .barcode-container svg { max-width: 100%; height: auto; }
+          .cut-separator { text-align: center; font-size: 10px; color: #222; margin: 12px 0 8px 0; border-top: 1px dashed #000; padding-top: 6px; }
+          .workshop-stub { background: #fafafa; border: 1px dashed #333; padding: 6px; margin-top: 6px; }
+          .page-break {
+            page-break-before: always !important;
+            break-before: page !important;
+            clear: both !important;
+            display: block !important;
+          }
+          .ticket-section {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          @media print {
+            .page-break {
+              page-break-before: always !important;
+              break-before: page !important;
+              clear: both !important;
+              display: block !important;
+            }
+            .ticket-section {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+          }
+          .pt-2 { padding-top: 8px; }
+          .pt-4 { padding-top: 16px; }
         </style>
       </head>
       <body>

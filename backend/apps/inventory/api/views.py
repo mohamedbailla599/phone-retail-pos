@@ -50,7 +50,8 @@ class DeviceListView(generics.ListAPIView):
                 Q(product__sku__icontains=search) |
                 Q(imei_1__icontains=search) |
                 Q(imei_2__icontains=search) |
-                Q(serial_number__icontains=search)
+                Q(serial_number__icontains=search) |
+                Q(color__icontains=search)
             )
 
         return queryset
@@ -96,6 +97,9 @@ class ReceiveDeviceView(APIView):
                 serial_number=serial_number,
                 battery_health=data.get('battery_health'),
                 battery_capacity_mah=data.get('battery_capacity_mah'),
+                storage_gb=data.get('storage_gb'),
+                ram_gb=data.get('ram_gb'),
+                color=data.get('color'),
                 condition=data.get('condition', DeviceItem.Condition.A)
             )
 
@@ -247,6 +251,9 @@ class DeviceDetailView(APIView):
                 'condition': device.condition,
                 'battery_health': device.battery_health,
                 'battery_capacity_mah': device.battery_capacity_mah,
+                'storage_gb': device.storage_gb,
+                'ram_gb': device.ram_gb,
+                'color': device.color,
             }
 
             updated_device = serializer.save()

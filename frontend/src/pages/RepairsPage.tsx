@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Sidebar from '../components/layout/Sidebar';
 import {
   Wrench,
   Plus,
@@ -13,12 +12,20 @@ import {
   DollarSign,
   ShieldCheck,
   Lock,
+  Camera,
+  X,
 } from 'lucide-react';
-import { repairsApi, type RepairTicket, type RepairStatus } from '../api/repairs';
+import { repairsApi, type RepairTicket } from '../api/repairs';
 import { CreateRepairModal } from '../components/repairs/CreateRepairModal';
 import { UpdateRepairStatusModal } from '../components/repairs/UpdateRepairStatusModal';
 import { DeliverRepairModal } from '../components/repairs/DeliverRepairModal';
+import BarcodeScannerModal from '../components/ui/BarcodeScannerModal';
 import { printRepairIntakeReceipt, printRepairDeliveryReceipt } from '../utils/printRepairReceipt';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
+import StatCard from '../components/ui/StatCard';
+import StatusBadge from '../components/ui/StatusBadge';
+import { formatCurrency, formatDateTime } from '../utils/formatters';
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'Tous les tickets' },
@@ -38,19 +45,30 @@ export const RepairsPage: React.FC = () => {
   // Filters & Search
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [statusModalTicket, setStatusModalTicket] = useState<RepairTicket | null>(null);
   const [deliverModalTicket, setDeliverModalTicket] = useState<RepairTicket | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
-  const fetchTickets = async () => {
+  // Debounce search query changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchTickets = async (overrideSearch?: string) => {
     setLoading(true);
     setError(null);
     try {
+      const term = overrideSearch !== undefined ? overrideSearch : debouncedSearch;
       const data = await repairsApi.getRepairs({
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
-        search: searchQuery.trim() || undefined,
+        search: term.trim() || undefined,
       });
       setTickets(data);
     } catch (err: any) {
@@ -62,12 +80,27 @@ export const RepairsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchTickets();
-  }, [statusFilter]);
+    fetchTickets(debouncedSearch);
+  }, [statusFilter, debouncedSearch]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchTickets();
+    setDebouncedSearch(searchQuery);
+    fetchTickets(searchQuery);
+  };
+
+  const handleScan = (scannedCode: string) => {
+    const cleanCode = scannedCode.trim();
+    setSearchQuery(cleanCode);
+    setDebouncedSearch(cleanCode);
+    setIsScannerOpen(false);
+    fetchTickets(cleanCode);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setDebouncedSearch('');
+    fetchTickets('');
   };
 
   // Metrics
@@ -84,176 +117,133 @@ export const RepairsPage: React.FC = () => {
     return { active, ready, delivered, pendingBalance };
   }, [tickets]);
 
-  const getStatusBadge = (status: RepairStatus, display: string) => {
-    switch (status) {
-      case 'RECEIVED':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30">
-            {display}
-          </span>
-        );
-      case 'DIAGNOSING':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
-            {display}
-          </span>
-        );
-      case 'WAITING_PARTS':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/30">
-            {display}
-          </span>
-        );
-      case 'IN_PROGRESS':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-yellow-500/10 text-yellow-400 border border-yellow-500/30">
-            {display}
-          </span>
-        );
-      case 'READY':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 animate-pulse">
-            Prêt au retrait
-          </span>
-        );
-      case 'DELIVERED':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/5 text-text-muted border border-border">
-            Livré & Soldé
-          </span>
-        );
-      case 'CANCELLED':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-500/10 text-red-400 border border-red-500/30">
-            Annulé
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-surface-elevated text-text border border-border">
-            {display}
-          </span>
-        );
-    }
-  };
-
   return (
-    <div className="flex h-screen w-screen bg-bg text-text overflow-hidden">
-      <Sidebar />
+    <PageContainer
+      header={
+        <PageHeader
+          title="Atelier & Service Réparations"
+          subtitle="Prise en charge matériel, suivi atelier, devis pièces, encaissements et tickets thermiques"
+          icon={Wrench}
+          badge={
+            <span className="text-xs font-mono font-semibold text-gold px-2.5 py-0.5 rounded-full bg-gold/10 border border-gold-border">
+              {tickets.length} ticket{tickets.length !== 1 ? 's' : ''}
+            </span>
+          }
+          actions={
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => fetchTickets()}
+                disabled={loading}
+                className="p-2.5 border border-border rounded-lg text-text-secondary hover:text-text hover:bg-white/5 transition-colors focus-ring"
+                title="Rafraîchir"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Top Header */}
-        <header className="px-8 py-5 border-b border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-shrink-0">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-gold/10 border border-gold-border flex items-center justify-center text-gold">
-                <Wrench className="w-5 h-5" />
-              </div>
-              <h1 className="text-xl font-bold tracking-tight text-text">Atelier & Service Réparations</h1>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="px-4 py-2.5 bg-gold hover:bg-gold-light text-bg font-bold rounded-lg text-xs flex items-center gap-2 shadow-lg shadow-gold/10 transition-all hover:scale-[1.02] active:scale-[0.98] focus-ring"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nouveau Dépôt Client</span>
+              </button>
             </div>
-            <p className="text-xs text-text-muted mt-1">
-              Prise en charge matériel, suivi atelier, devis pièces, encaissements et tickets thermiques
-            </p>
-          </div>
+          }
+        />
+      }
+    >
+      <div className="space-y-6">
+        {/* Quick Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="En Atelier Actif"
+            value={metrics.active}
+            subValue="Diagnostic, pièces ou intervention en cours"
+            icon={Clock}
+            variant="amber"
+          />
+          <StatCard
+            label="Prêts pour Retrait"
+            value={metrics.ready}
+            subValue="En attente de passage du client"
+            icon={CheckCircle2}
+            variant="emerald"
+          />
+          <StatCard
+            label="Restitués & Soldés"
+            value={metrics.delivered}
+            subValue="Appareils remis avec garantie active"
+            icon={ShieldCheck}
+            variant="blue"
+          />
+          <StatCard
+            label="Solde en Attente"
+            value={formatCurrency(metrics.pendingBalance)}
+            subValue="Reste à encaisser à la restitution"
+            icon={DollarSign}
+            variant="gold"
+          />
+        </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => fetchTickets()}
-              disabled={loading}
-              className="p-2.5 border border-border rounded-lg text-text-secondary hover:text-text hover:bg-white/5 transition-colors"
-              title="Rafraîchir"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="px-4 py-2.5 bg-gold hover:bg-gold-light text-bg font-bold rounded-lg text-xs flex items-center gap-2 shadow-lg shadow-gold/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nouveau Dépôt Client</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 custom-scrollbar">
-          {/* Quick Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 bg-surface rounded-xl border border-border shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-secondary">En Atelier Actif</span>
-                <Clock className="w-4 h-4 text-amber-400" />
-              </div>
-              <div className="text-2xl font-bold font-mono text-text mt-2">{metrics.active}</div>
-              <p className="text-[11px] text-text-muted mt-1">Diagnostic, pièces ou intervention en cours</p>
-            </div>
-
-            <div className="p-4 bg-surface rounded-xl border border-emerald-500/20 bg-emerald-500/5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-emerald-400">Prêts pour Retrait</span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div className="text-2xl font-bold font-mono text-emerald-400 mt-2">{metrics.ready}</div>
-              <p className="text-[11px] text-text-muted mt-1">En attente de passage du client</p>
-            </div>
-
-            <div className="p-4 bg-surface rounded-xl border border-border shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-secondary">Restitués & Soldés</span>
-                <ShieldCheck className="w-4 h-4 text-blue-400" />
-              </div>
-              <div className="text-2xl font-bold font-mono text-text mt-2">{metrics.delivered}</div>
-              <p className="text-[11px] text-text-muted mt-1">Appareils remis avec garantie active</p>
-            </div>
-
-            <div className="p-4 bg-surface rounded-xl border border-gold-border/40 bg-gold/5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gold">Solde en Attente</span>
-                <DollarSign className="w-4 h-4 text-gold" />
-              </div>
-              <div className="text-2xl font-bold font-mono text-gold mt-2">
-                {metrics.pendingBalance.toFixed(2)} DH
-              </div>
-              <p className="text-[11px] text-text-muted mt-1">Reste à encaisser à la restitution</p>
-            </div>
-          </div>
-
-          {/* Search & Filter Toolbar */}
-          <div className="p-4 bg-surface rounded-xl border border-border flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            <form onSubmit={handleSearchSubmit} className="flex-1 relative">
-              <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+        {/* Search & Filter Toolbar */}
+        <div className="p-4 bg-surface rounded-xl border border-border flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+          <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Rechercher par N° ticket, client, téléphone, modèle ou IMEI..."
+                placeholder="Rechercher par IMEI, N° ticket, client, tél, marque, modèle, panne..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-surface-elevated border border-border rounded-lg text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-gold transition-colors"
+                className="w-full pl-10 pr-9 py-2 bg-surface-elevated border border-border rounded-lg text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-gold transition-colors focus-ring"
               />
-            </form>
-
-            {/* Filter pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 custom-scrollbar">
-              {STATUS_FILTERS.map((f) => {
-                const isActive = statusFilter === f.value;
-                return (
-                  <button
-                    key={f.value}
-                    onClick={() => setStatusFilter(f.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                      isActive
-                        ? 'bg-gold text-bg font-bold shadow-sm'
-                        : 'bg-surface-elevated text-text-secondary hover:text-text hover:bg-white/5 border border-border'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                );
-              })}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text rounded-md transition-colors cursor-pointer"
+                  title="Effacer la recherche"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-          </div>
 
-          {/* Tickets Table */}
+            {/* Scan IMEI / Barcode Button */}
+            <button
+              type="button"
+              onClick={() => setIsScannerOpen(true)}
+              className="h-9 px-3.5 bg-gold/15 hover:bg-gold/25 text-gold border border-gold-border/60 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xs cursor-pointer whitespace-nowrap focus-ring"
+              title="Scanner un IMEI ou le code-barres d'un ticket avec la caméra"
+            >
+              <Camera className="w-4 h-4" />
+              <span className="hidden sm:inline">Scanner IMEI</span>
+              <span className="sm:hidden">Scan</span>
+            </button>
+          </form>
+
+          {/* Filter pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 custom-scrollbar">
+            {STATUS_FILTERS.map((f) => {
+              const isActive = statusFilter === f.value;
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setStatusFilter(f.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors focus-ring ${
+                    isActive
+                      ? 'bg-gold text-bg font-bold shadow-sm'
+                      : 'bg-surface-elevated text-text-secondary hover:text-text hover:bg-white/5 border border-border'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Tickets Table */}
           <div className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm">
             {error && (
               <div className="p-4 bg-red-500/10 border-b border-red-500/20 text-red-400 text-xs flex items-center gap-2">
@@ -270,7 +260,7 @@ export const RepairsPage: React.FC = () => {
                     <th className="px-5 py-3.5">Client & Contact</th>
                     <th className="px-5 py-3.5">Appareil & Panne</th>
                     <th className="px-5 py-3.5">Statut Atelier</th>
-                    <th className="px-5 py-3.5">Finances (DH)</th>
+                    <th className="px-5 py-3.5 text-right">Finances</th>
                     <th className="px-5 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -280,17 +270,34 @@ export const RepairsPage: React.FC = () => {
                       <td colSpan={6} className="px-5 py-12 text-center text-text-muted">
                         <div className="max-w-xs mx-auto space-y-3">
                           <Wrench className="w-8 h-8 text-text-muted/40 mx-auto" />
-                          <p className="text-sm font-semibold text-text">Aucun ticket trouvé</p>
-                          <p className="text-xs">
-                            Aucune réparation ne correspond aux critères de recherche actuels.
+                          <p className="text-sm font-semibold text-text">
+                            {searchQuery ? 'Aucun résultat trouvé' : 'Aucun ticket trouvé'}
                           </p>
-                          <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold/10 border border-gold-border text-gold rounded-lg text-xs font-bold hover:bg-gold/20 transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Créer un ticket de dépôt
-                          </button>
+                          <p className="text-xs">
+                            {searchQuery
+                              ? `Aucune réparation ne correspond à « ${searchQuery} » avec le filtre « ${STATUS_FILTERS.find((f) => f.value === statusFilter)?.label} ».`
+                              : 'Aucune réparation ne correspond aux critères de recherche actuels.'}
+                          </p>
+                          <div className="flex items-center justify-center gap-2 pt-1">
+                            {searchQuery && (
+                              <button
+                                type="button"
+                                onClick={handleClearSearch}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-elevated border border-border text-text rounded-lg text-xs font-medium hover:bg-white/5 transition-colors cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                <span>Effacer</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setIsCreateModalOpen(true)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold/10 border border-gold-border text-gold rounded-lg text-xs font-bold hover:bg-gold/20 transition-colors cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Nouveau Dépôt</span>
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -314,12 +321,7 @@ export const RepairsPage: React.FC = () => {
                               {ticket.ticket_number}
                             </div>
                             <div className="text-[11px] text-text-muted mt-0.5">
-                              {new Date(ticket.created_at).toLocaleDateString('fr-FR', {
-                                day: '2-digit',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                              {formatDateTime(ticket.created_at)}
                             </div>
                             {ticket.created_by_username && (
                               <div className="text-[10px] text-text-muted/80 mt-0.5">
@@ -359,7 +361,11 @@ export const RepairsPage: React.FC = () => {
 
                           {/* Status */}
                           <td className="px-5 py-4 align-top">
-                            {getStatusBadge(ticket.status, ticket.status_display)}
+                            <StatusBadge
+                              status={ticket.status}
+                              label={ticket.status === 'READY' ? 'Prêt au retrait' : ticket.status_display}
+                              tone={ticket.status === 'READY' ? 'success' : undefined}
+                            />
                             {ticket.technician_notes && (
                               <p className="text-[10px] text-text-secondary mt-1.5 italic line-clamp-1">
                                 "{ticket.technician_notes}"
@@ -368,17 +374,17 @@ export const RepairsPage: React.FC = () => {
                           </td>
 
                           {/* Financials */}
-                          <td className="px-5 py-4 align-top font-mono">
-                            <div className="text-text font-bold">
-                              {finalCost.toFixed(2)} DH
+                          <td className="px-5 py-4 align-top text-right">
+                            <div className="text-text font-bold tabular-nums">
+                              {formatCurrency(finalCost)}
                             </div>
                             {deposit > 0 && (
-                              <div className="text-[10px] text-emerald-400">
-                                Acompte: {deposit.toFixed(2)} DH
+                              <div className="text-[10px] text-emerald-400 tabular-nums">
+                                Acompte: {formatCurrency(deposit)}
                               </div>
                             )}
-                            <div className={`text-[11px] font-semibold mt-0.5 ${balance > 0 && !isDelivered ? 'text-amber-400' : 'text-text-muted'}`}>
-                              {isDelivered ? 'Soldé' : `Reste: ${balance.toFixed(2)} DH`}
+                            <div className={`text-[11px] font-semibold mt-0.5 tabular-nums ${balance > 0 && !isDelivered ? 'text-amber-400' : 'text-text-muted'}`}>
+                              {isDelivered ? 'Soldé' : `Reste: ${formatCurrency(balance)}`}
                             </div>
                           </td>
 
@@ -388,7 +394,7 @@ export const RepairsPage: React.FC = () => {
                               {/* Print Ticket Intake */}
                               <button
                                 onClick={() => printRepairIntakeReceipt(ticket)}
-                                className="p-1.5 bg-surface-elevated hover:bg-white/10 border border-border rounded text-text-secondary hover:text-text transition-colors"
+                                className="p-1.5 bg-surface-elevated hover:bg-white/10 border border-border rounded text-text-secondary hover:text-text transition-colors focus-ring"
                                 title="Imprimer le ticket de dépôt (80mm)"
                               >
                                 <Printer className="w-3.5 h-3.5" />
@@ -399,7 +405,7 @@ export const RepairsPage: React.FC = () => {
                                   {/* Update status */}
                                   <button
                                     onClick={() => setStatusModalTicket(ticket)}
-                                    className="px-2.5 py-1 bg-surface-elevated hover:border-gold/50 border border-border rounded text-[11px] font-semibold text-text transition-colors flex items-center gap-1"
+                                    className="px-2.5 py-1 bg-surface-elevated hover:border-gold/50 border border-border rounded text-[11px] font-semibold text-text transition-colors flex items-center gap-1 focus-ring"
                                   >
                                     <Clock className="w-3 h-3 text-gold" />
                                     <span>Statut</span>
@@ -408,7 +414,7 @@ export const RepairsPage: React.FC = () => {
                                   {/* Deliver & Settle */}
                                   <button
                                     onClick={() => setDeliverModalTicket(ticket)}
-                                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all flex items-center gap-1 ${
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all flex items-center gap-1 focus-ring ${
                                       isReady
                                         ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-sm'
                                         : 'bg-gold/15 hover:bg-gold/25 border border-gold-border text-gold'
@@ -423,7 +429,7 @@ export const RepairsPage: React.FC = () => {
                               {isDelivered && (
                                 <button
                                   onClick={() => printRepairDeliveryReceipt(ticket)}
-                                  className="px-2.5 py-1 bg-surface-elevated hover:bg-white/10 border border-border rounded text-[11px] font-medium text-emerald-400 transition-colors flex items-center gap-1"
+                                  className="px-2.5 py-1 bg-surface-elevated hover:bg-white/10 border border-border rounded text-[11px] font-medium text-emerald-400 transition-colors flex items-center gap-1 focus-ring"
                                   title="Réimprimer facture & certificat de garantie"
                                 >
                                   <ShieldCheck className="w-3 h-3" />
@@ -441,7 +447,6 @@ export const RepairsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </main>
 
       {/* Modals */}
       <CreateRepairModal
@@ -463,7 +468,16 @@ export const RepairsPage: React.FC = () => {
         onClose={() => setDeliverModalTicket(null)}
         onSuccess={() => fetchTickets()}
       />
-    </div>
+
+      {/* Barcode & Camera Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleScan}
+        title="Scanner IMEI ou Ticket Réparation"
+        expectedType="any"
+      />
+    </PageContainer>
   );
 };
 

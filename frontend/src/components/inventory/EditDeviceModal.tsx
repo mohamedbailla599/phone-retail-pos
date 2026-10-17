@@ -8,6 +8,7 @@ import { Pencil, Camera, AlertCircle, Sparkles } from 'lucide-react';
 import OperatorSelectionModal from '../ui/OperatorSelectionModal';
 import { useRequireOperator } from '../../hooks/useRequireOperator';
 import BarcodeScannerModal from '../ui/BarcodeScannerModal';
+import PhoneColorDot from '../ui/PhoneColorDot';
 
 interface EditDeviceModalProps {
   isOpen: boolean;
@@ -30,6 +31,9 @@ export default function EditDeviceModal({
     default_selling_price: '',
     minimum_selling_price: '',
     battery_health: '',
+    storage_gb: '',
+    ram_gb: '',
+    color: '',
     condition: 'A',
   });
 
@@ -55,6 +59,9 @@ export default function EditDeviceModal({
         default_selling_price: device.default_selling_price || '',
         minimum_selling_price: device.minimum_selling_price || '',
         battery_health: device.battery_health !== null && device.battery_health !== undefined ? String(device.battery_health) : '',
+        storage_gb: device.storage_gb !== null && device.storage_gb !== undefined ? String(device.storage_gb) : '',
+        ram_gb: device.ram_gb !== null && device.ram_gb !== undefined ? String(device.ram_gb) : '',
+        color: device.color || '',
         condition: device.condition || 'A',
       });
       setError('');
@@ -110,6 +117,10 @@ export default function EditDeviceModal({
     setError('');
 
     try {
+      const isApple =
+        device.product.brand?.toLowerCase() === 'apple' ||
+        device.product.name?.toLowerCase().includes('iphone');
+
       const payload: Record<string, any> = {
         imei_1: formData.imei_1.trim() || null,
         imei_2: formData.imei_2.trim() || null,
@@ -119,6 +130,9 @@ export default function EditDeviceModal({
         minimum_selling_price: formData.minimum_selling_price,
         condition: formData.condition,
         battery_health: formData.battery_health ? parseInt(formData.battery_health, 10) : null,
+        storage_gb: formData.storage_gb ? parseInt(formData.storage_gb, 10) : null,
+        ram_gb: isApple ? null : (formData.ram_gb ? parseInt(formData.ram_gb, 10) : null),
+        color: formData.color.trim() || null,
       };
 
       await inventoryApi.updateDevice(device.id, payload);
@@ -307,6 +321,51 @@ export default function EditDeviceModal({
                   value={formData.minimum_selling_price}
                   onChange={(e) => setFormData({ ...formData, minimum_selling_price: e.target.value })}
                   placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            {/* Spécifications Section */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center gap-1.5">
+                Spécifications de l'appareil
+              </h3>
+              <div className={`grid grid-cols-1 ${
+                device.product.brand?.toLowerCase() === 'apple' ||
+                device.product.name?.toLowerCase().includes('iphone')
+                  ? 'md:grid-cols-2'
+                  : 'md:grid-cols-3'
+              } gap-3`}>
+                <Input
+                  label="Stockage (Go)"
+                  type="number"
+                  min="1"
+                  value={formData.storage_gb}
+                  onChange={(e) => setFormData({ ...formData, storage_gb: e.target.value })}
+                  placeholder="Ex: 128, 256, 512"
+                />
+                {device.product.brand?.toLowerCase() !== 'apple' &&
+                  !device.product.name?.toLowerCase().includes('iphone') && (
+                    <Input
+                      label="RAM (Go - Android)"
+                      type="number"
+                      min="1"
+                      value={formData.ram_gb}
+                      onChange={(e) => setFormData({ ...formData, ram_gb: e.target.value })}
+                      placeholder="Ex: 8, 12"
+                    />
+                  )}
+                <Input
+                  label={
+                    <span className="flex items-center gap-1.5">
+                      Couleur
+                      {formData.color && <PhoneColorDot color={formData.color} size="xs" />}
+                    </span>
+                  }
+                  type="text"
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  placeholder="Ex: Noir, Titane Naturel, Deep Purple"
                 />
               </div>
             </div>

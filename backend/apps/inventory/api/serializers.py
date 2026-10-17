@@ -10,7 +10,8 @@ class DeviceItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'product', 'imei_1', 'imei_2', 'serial_number', 
             'cost_price', 'default_selling_price', 'minimum_selling_price', 
-            'battery_health', 'battery_capacity_mah', 'condition', 'status', 'received_at'
+            'battery_health', 'battery_capacity_mah', 'storage_gb', 'ram_gb', 'color',
+            'condition', 'status', 'received_at'
         ]
 
 class AccessoryStockSerializer(serializers.ModelSerializer):
@@ -33,6 +34,9 @@ class ReceiveDeviceSerializer(serializers.Serializer):
     minimum_selling_price = serializers.DecimalField(max_digits=10, decimal_places=2)
     battery_health = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=100)
     battery_capacity_mah = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    storage_gb = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    ram_gb = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    color = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=50)
     condition = serializers.ChoiceField(choices=DeviceItem.Condition.choices, default=DeviceItem.Condition.A)
 
 class ReceiveAccessorySerializer(serializers.Serializer):
@@ -60,7 +64,7 @@ class DeviceItemUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'imei_1', 'imei_2', 'serial_number',
             'cost_price', 'default_selling_price', 'minimum_selling_price',
-            'battery_health', 'battery_capacity_mah', 'condition'
+            'battery_health', 'battery_capacity_mah', 'storage_gb', 'ram_gb', 'color', 'condition'
         ]
         extra_kwargs = {
             'cost_price': {'required': False},
@@ -72,6 +76,9 @@ class DeviceItemUpdateSerializer(serializers.ModelSerializer):
             'serial_number': {'required': False, 'allow_null': True, 'allow_blank': True},
             'battery_health': {'required': False, 'allow_null': True},
             'battery_capacity_mah': {'required': False, 'allow_null': True},
+            'storage_gb': {'required': False, 'allow_null': True},
+            'ram_gb': {'required': False, 'allow_null': True},
+            'color': {'required': False, 'allow_null': True, 'allow_blank': True},
         }
 
     def validate_imei_1(self, value):

@@ -13,7 +13,11 @@ import EditDeviceModal from '../components/inventory/EditDeviceModal';
 import DeleteDeviceModal from '../components/inventory/DeleteDeviceModal';
 import { Select } from '../components/ui/Select';
 import { useDebounce } from '../hooks/useDebounce';
-import Sidebar from '../components/layout/Sidebar';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
+import StatusBadge from '../components/ui/StatusBadge';
+import PhoneColorDot from '../components/ui/PhoneColorDot';
+import { formatCurrency } from '../utils/formatters';
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<DeviceItem[]>([]);
@@ -54,7 +58,7 @@ export default function DevicesPage() {
       });
       setDevices(data);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load devices');
+      setError(err.response?.data?.error || 'Erreur lors du chargement des appareils');
     } finally {
       setLoading(false);
     }
@@ -102,154 +106,179 @@ export default function DevicesPage() {
 
   const activeDropdownDevice = devices.find((d) => d.id === dropdownOpenId) || null;
 
+  const headerActions = (
+    <div className="flex items-center gap-2.5">
+      <button
+        onClick={() => loadDevices()}
+        disabled={loading}
+        className="h-10 px-3.5 rounded-[var(--radius-md)] bg-surface hover:bg-surface-hover text-text-secondary hover:text-text border border-border flex items-center gap-2 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+        title="Actualiser"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-gold' : ''}`} />
+        <span>Actualiser</span>
+      </button>
+
+      <button
+        onClick={() => setIsModalOpen(true)}
+        className="h-10 px-4 bg-gold hover:bg-gold-bright text-black font-semibold rounded-[var(--radius-md)] flex items-center gap-2 text-xs transition-all shadow-md active:scale-95 cursor-pointer"
+      >
+        <Plus className="w-4 h-4" />
+        <span>Réceptionner un appareil</span>
+      </button>
+    </div>
+  );
+
   return (
-    <div className="h-screen flex bg-bg overflow-hidden w-full print:hidden">
-      {/* Sidebar navigation */}
-      <Sidebar />
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-bg">
-        <header className="h-[72px] flex items-center justify-between px-8 bg-surface border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold-border flex items-center justify-center text-gold">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-text tracking-tight flex items-center gap-2">
-                Devices Inventory
-              </h1>
-              <p className="text-xs text-text-muted mt-0.5">{devices.length} serialized devices in system</p>
-            </div>
+    <PageContainer
+      header={
+        <PageHeader
+          icon={Smartphone}
+          title="Stock des Téléphones"
+          subtitle={`${devices.length} appareils sérialisés répertoriés dans le système`}
+          actions={headerActions}
+        />
+      }
+    >
+      <div className="space-y-6">
+        {error && (
+          <div className="p-4 rounded-[var(--radius-md)] bg-danger/10 border border-danger/30 text-danger text-sm">
+            {error}
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="h-10 px-4 bg-gold hover:bg-gold-bright text-black font-semibold rounded-[var(--radius-md)] flex items-center gap-2 transition-all shadow-md active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            Receive Device
-          </button>
-        </header>
+        )}
 
-        <div className="flex-1 overflow-auto p-8 space-y-6">
-          <div className="max-w-[1400px] mx-auto space-y-6">
-          {error && (
-            <div className="p-3 mb-6 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-              {error}
+        {/* Filters */}
+        <div className="p-4 rounded-[var(--radius-lg)] bg-surface border border-border flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher par nom, SKU, IMEI, Série..."
+              className="w-full pl-10 pr-4 h-10 bg-surface-elevated border border-border rounded-[var(--radius-md)] text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-gold/60 transition-colors"
+            />
+          </div>
+          <div className="w-[170px]">
+            <Select
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: 'ALL', label: 'Tous les statuts' },
+                { value: 'IN_STOCK', label: 'En stock' },
+                { value: 'RESERVED', label: 'Réservé' },
+                { value: 'SOLD', label: 'Vendu' },
+                { value: 'REPAIR', label: 'En réparation' },
+                { value: 'DAMAGED', label: 'Endommagé' },
+                { value: 'LOST', label: 'Perdu' },
+              ]}
+            />
+          </div>
+          <div className="w-[150px]">
+            <Select
+              value={platform}
+              onChange={setPlatform}
+              options={[
+                { value: '', label: 'Toutes marques' },
+                { value: 'APPLE', label: 'Apple' },
+                { value: 'ANDROID', label: 'Android' },
+              ]}
+            />
+          </div>
+          <div className="w-[150px]">
+            <Select
+              value={condition}
+              onChange={setCondition}
+              options={[
+                { value: '', label: 'Tous les états' },
+                { value: 'A', label: 'Grade A' },
+                { value: 'B', label: 'Grade B' },
+                { value: 'C', label: 'Grade C' },
+                { value: 'N', label: 'Neuf' },
+              ]}
+            />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-surface border border-border rounded-[var(--radius-lg)] overflow-hidden relative min-h-[200px] shadow-xs">
+          {loading && (
+            <div className="absolute inset-0 bg-surface/50 backdrop-blur-xs flex items-center justify-center z-10">
+              <Loader2 className="w-8 h-8 text-gold animate-spin" />
             </div>
           )}
-
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-4 mb-6">
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, SKU, IMEI, Serial..."
-                className="w-full pl-10 pr-4 h-10 bg-surface-alt border border-border rounded-[var(--radius-md)] text-sm text-text placeholder-text-muted focus:outline-none focus:border-gold-border focus:ring-2 focus:ring-gold/20 transition-all"
-              />
-            </div>
-            <div className="w-[180px]">
-              <Select
-                value={status}
-                onChange={setStatus}
-                options={[
-                  { value: 'ALL', label: 'All Statuses' },
-                  { value: 'IN_STOCK', label: 'In Stock' },
-                  { value: 'RESERVED', label: 'Reserved' },
-                  { value: 'SOLD', label: 'Sold' },
-                  { value: 'REPAIR', label: 'Repair' },
-                  { value: 'DAMAGED', label: 'Damaged' },
-                  { value: 'LOST', label: 'Lost' },
-                ]}
-              />
-            </div>
-            <div className="w-[160px]">
-              <Select
-                value={platform}
-                onChange={setPlatform}
-                options={[
-                  { value: '', label: 'All Types' },
-                  { value: 'APPLE', label: 'Apple' },
-                  { value: 'ANDROID', label: 'Android' },
-                ]}
-              />
-            </div>
-            <div className="w-[160px]">
-              <Select
-                value={condition}
-                onChange={setCondition}
-                options={[
-                  { value: '', label: 'All Conditions' },
-                  { value: 'A', label: 'Grade A' },
-                  { value: 'B', label: 'Grade B' },
-                  { value: 'C', label: 'Grade C' },
-                  { value: 'N', label: 'New' },
-                ]}
-              />
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="bg-surface border border-border rounded-[var(--radius-lg)] overflow-hidden relative min-h-[200px] shadow-sm">
-            {loading && (
-              <div className="absolute inset-0 bg-surface/50 backdrop-blur-sm flex items-center justify-center z-10">
-                <Loader2 className="w-8 h-8 text-gold animate-spin" />
-              </div>
-            )}
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-alt">
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Product</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">SKU</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Identifier</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Cost</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Price</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Cond/Batt</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 font-semibold text-text-secondary text-xs uppercase tracking-wider text-right">Actions</th>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-border bg-surface-elevated text-text-secondary uppercase font-semibold">
+                <tr>
+                  <th className="px-4 py-3.5">Produit</th>
+                  <th className="px-4 py-3.5">SKU</th>
+                  <th className="px-4 py-3.5">Identifiants</th>
+                  <th className="px-4 py-3.5 text-right">Coût</th>
+                  <th className="px-4 py-3.5 text-right">Prix de vente</th>
+                  <th className="px-4 py-3.5 text-center">État / Batt</th>
+                  <th className="px-4 py-3.5 text-center">Statut</th>
+                  <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {devices.map((device) => (
-                  <tr key={device.id} className="hover:bg-surface-hover transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-text">{device.product.name}</p>
-                      <p className="text-xs text-text-muted">{device.product.brand}</p>
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary">{device.product.sku}</td>
-                    <td className="px-4 py-3 text-text-secondary">
-                      <div className="text-xs">
-                        {device.imei_1 && <div>IMEI1: {device.imei_1}</div>}
-                        {device.serial_number && <div>SN: {device.serial_number}</div>}
+                  <tr key={device.id} className="hover:bg-surface-hover/60 transition-colors">
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-text">{device.product.brand} {device.product.name}</span>
+                        {device.storage_gb && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gold/15 text-gold border border-gold/30">
+                            {device.storage_gb} Go
+                          </span>
+                        )}
+                        {device.ram_gb &&
+                          device.product.brand?.toLowerCase() !== 'apple' &&
+                          !device.product.name?.toLowerCase().includes('iphone') && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-elevated text-text-muted border border-border">
+                            {device.ram_gb} Go RAM
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-text-muted mt-0.5">
+                        {device.color ? (
+                          <div className="flex items-center gap-1.5 text-text-secondary font-medium">
+                            <span className="text-text-muted">Couleur :</span>
+                            <PhoneColorDot color={device.color} size="sm" />
+                            <span>{device.color}</span>
+                          </div>
+                        ) : null}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-text text-right">{device.cost_price} DH</td>
-                    <td className="px-4 py-3 text-text text-right">{device.default_selling_price} DH</td>
-                    <td className="px-4 py-3 text-text-secondary">
-                      {device.condition} {device.battery_health ? `(${device.battery_health}%)` : ''}
+                    <td className="px-4 py-3.5 font-mono text-[11px] text-text-secondary">{device.product.sku}</td>
+                    <td className="px-4 py-3.5 font-mono text-[11px] text-text-secondary">
+                      <div className="space-y-0.5">
+                        {device.imei_1 && <div>IMEI1: <span className="text-text">{device.imei_1}</span></div>}
+                        {device.serial_number && <div>SN: <span className="text-text">{device.serial_number}</span></div>}
+                      </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border
-                        ${device.status === 'IN_STOCK' ? 'bg-green-500/10 text-green-400 border-green-500/20' : ''}
-                        ${device.status === 'SOLD' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : ''}
-                        ${device.status === 'RESERVED' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : ''}
-                        ${device.status === 'REPAIR' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : ''}
-                        ${device.status === 'DAMAGED' ? 'bg-red-500/10 text-red-400 border-red-500/20' : ''}
-                        ${device.status === 'LOST' ? 'bg-red-500/10 text-red-400 border-red-500/20' : ''}
-                      `}>
-                        {device.status.replace('_', ' ')}
-                      </span>
+                    <td className="px-4 py-3.5 text-right font-mono tabular-nums text-text-secondary">
+                      {formatCurrency(device.cost_price)}
                     </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-right font-mono tabular-nums font-semibold text-text">
+                      {formatCurrency(device.default_selling_price)}
+                    </td>
+                    <td className="px-4 py-3.5 text-center text-text-secondary">
+                      <span className="font-semibold text-text">Grade {device.condition}</span>{' '}
+                      {device.battery_health ? (
+                        <span className="text-[11px] text-text-muted">({device.battery_health}%)</span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <StatusBadge status={device.status} size="sm" />
+                    </td>
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <button
                         type="button"
                         onClick={(e) => handleToggleDropdown(e, device.id)}
-                        className={`p-1.5 rounded-lg border transition-all inline-flex items-center justify-center cursor-pointer ${
+                        className={`p-1.5 rounded-[var(--radius-sm)] border transition-all inline-flex items-center justify-center cursor-pointer ${
                           dropdownOpenId === device.id
-                            ? 'bg-gold/15 text-gold border-gold/40 shadow-sm ring-2 ring-gold/20'
-                            : 'bg-surface-alt hover:bg-surface-hover text-text-secondary hover:text-text border-border hover:border-border-focus'
+                            ? 'bg-gold/15 text-gold border-gold/40 shadow-xs ring-2 ring-gold/20'
+                            : 'bg-surface-elevated hover:bg-surface-hover text-text-secondary hover:text-text border-border'
                         }`}
                         title="Options et actions de l'appareil"
                       >
@@ -261,13 +290,13 @@ export default function DevicesPage() {
                 {devices.length === 0 && !loading && (
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center">
-                      <div className="text-text-muted mb-2">No devices found.</div>
+                      <div className="text-text-muted mb-2 text-xs">Aucun appareil trouvé.</div>
                       {search || status !== 'ALL' || condition || platform ? (
                         <button 
                           onClick={() => { setSearch(''); setStatus('ALL'); setCondition(''); setPlatform(''); }}
-                          className="text-gold hover:underline text-sm"
+                          className="text-gold hover:underline text-xs font-semibold cursor-pointer"
                         >
-                          Clear all filters
+                          Réinitialiser les filtres
                         </button>
                       ) : null}
                     </td>
@@ -278,7 +307,6 @@ export default function DevicesPage() {
           </div>
         </div>
       </div>
-    </div>
 
       {/* Floating Action Dropdown Menu */}
       {dropdownOpenId && dropdownPos && activeDropdownDevice && (
@@ -309,6 +337,9 @@ export default function DevicesPage() {
                 setDeviceToPrint({
                   id: d.id,
                   product: d.product,
+                  storage_gb: d.storage_gb,
+                  ram_gb: d.ram_gb,
+                  color: d.color,
                   imei_1: d.imei_1,
                   imei_2: d.imei_2,
                   serial_number: d.serial_number,
@@ -457,6 +488,6 @@ export default function DevicesPage() {
         }}
         device={deviceToDelete}
       />
-    </div>
+    </PageContainer>
   );
 }
