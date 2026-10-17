@@ -13,12 +13,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20%7C%2017-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
 [Key Features](#-key-features) •
 [Architecture](#-system-architecture) •
 [Quick Start](#-quick-start) •
+[Store Handover](#-store-deployment--offline-handover) •
 [Configuration](#-configuration) •
 [Domains & Modules](#-core-domains--modules) •
 [API & WebSockets](#-api--websocket-protocol) •
@@ -68,12 +69,22 @@ Built from the ground up to solve the challenges of electronics retail, Bighriss
 
 - **🛠️ Repair Workshop & Warranty Management**:
   - Repair intake tickets, diagnostic assessments, customer issue notes, and technician assignment.
+  - Dedicated **wireless IMEI / Barcode camera scanner** directly integrated next to the repair search bar.
   - Automated warranty slips tied to device IMEIs with configurable duration rules per store settings.
 
 - **🖨️ Thermal Receipt & Barcode Generation**:
   - Direct 80mm and 58mm ESC/POS compatible thermal receipt layout.
+  - Embedded circular / rounded store branding logo on all customer receipts and invoices.
   - Dynamic barcode/QR label rendering using `python-barcode` and `jsbarcode`.
   - PDF export with client/store details, items, tax, and custom store policy footers.
+
+- **💾 Dual-Tier Database Backups**:
+  - In-app **1-Click Backup download** from POS Settings (`/settings`) generating complete JSON database snapshots.
+  - Automated headless daily backup script (`backup_db.bat`) with 30-day retention and auto-detection/synchronization to external USB drives.
+
+- **🖥️ 1-Click Offline Desktop POS**:
+  - Native standalone desktop app window (`start_pos.bat`) without browser address bars for cashiers.
+  - Production Docker Compose orchestration for offline store laptop deployment.
 
 - **🛡️ Immutable Audit Logging**:
   - Every financial transaction, stock movement, price override, and administrative update is immutably logged with user, IP, and timestamp.
@@ -142,7 +153,7 @@ graph TD
 | **Framework** | Django | 5.2.17 | High-performance Python web framework |
 | **REST API** | Django REST Framework | 3.18.1 | Robust serialized JSON endpoints |
 | **ASGI / Realtime** | Daphne & Channels | 4.2 / 4.3 | Asynchronous WebSocket and event bus |
-| **Database** | PostgreSQL / SQLite | 17 / 3.x | Relational persistence with transaction safety |
+| **Database** | PostgreSQL / SQLite | 16 / 17 / 3.x | Relational persistence with transaction safety |
 | **Imaging & Barcodes** | Pillow / python-barcode | 12.3 / 0.16 | Receipt & label graphics generation |
 | **Configuration** | django-environ | 0.14.0 | Twelve-factor environment management |
 
@@ -177,11 +188,13 @@ bighrissen-phone/
 │   │   ├── reservations/     # Customer item deposits & reservation lifecycle
 │   │   ├── returns/          # Return item intake & condition evaluation
 │   │   ├── sales/            # POS transaction engine, cart & WebSocket consumers
-│   │   ├── store_settings/   # Store metadata, warranty rules, currency & receipt config
+│   │   ├── store_settings/   # Store metadata, backup views, currency & receipt config
 │   │   ├── users/            # Custom User model, operator roles & permissions
 │   │   └── warranty/         # Repair workshop tickets & warranty certificates
 │   ├── config/               # Django settings, ASGI router, WSGI & URL routing
-│   ├── Dockerfile            # Container definition for Django/Daphne service
+│   ├── fixtures/             # Initial store data (Guelmim store, catalog & inventory)
+│   ├── Dockerfile            # Container definition for Django/Daphne ASGI service
+│   ├── entrypoint.sh         # Startup script: DB wait, migrations, static & auto-seed
 │   ├── manage.py             # Django management CLI
 │   └── requirements.txt      # Python dependencies
 ├── frontend/
@@ -195,9 +208,15 @@ bighrissen-phone/
 │   │   ├── App.tsx           # Route layout & authentication gatekeeper
 │   │   ├── index.css         # Tailwind CSS v4 design system
 │   │   └── main.tsx          # React application root
+│   ├── Dockerfile            # Multi-stage production build (Node.js -> Nginx)
+│   ├── nginx.conf            # Nginx config with WebSocket proxying & SPA routing
 │   ├── package.json          # Node.js dependencies & scripts
 │   └── vite.config.ts        # Vite build & reverse-proxy configuration
-├── docker-compose.yml        # Orchestration for PostgreSQL & Backend
+├── docker-compose.yml        # Orchestration for PostgreSQL, Backend ASGI & Nginx Frontend
+├── start_pos.bat             # 1-Click desktop launcher for store cashier
+├── setup_store_laptop.bat    # Automated store PC environment installer
+├── backup_db.bat             # Daily backup script with auto-sync to USB
+├── HANDOVER_AND_DEPLOYMENT_GUIDE.md # Non-technical store deployment & recovery guide
 ├── .env.example              # Sample environment variables
 └── README.md                 # Project documentation
 ```
@@ -274,22 +293,53 @@ The application is now live at:
 
 ---
 
-### Option 2: Docker Compose (Full Stack with PostgreSQL 17)
+### Option 2: Production Docker Compose (Full 3-Tier Stack)
 
-To run the containerized backend and PostgreSQL database:
+Runs the complete isolated production environment: **PostgreSQL 16**, **Daphne ASGI Backend**, and **Nginx Reverse Proxy & React Frontend**.
 
 ```bash
-# Start backend and database services
+# 1. Clone & copy environment variables
+cp .env.example .env
+
+# 2. Build and launch all services in detached mode
 docker compose up -d --build
-
-# Run database migrations inside container
-docker compose exec backend python manage.py migrate
-
-# Create an administrator account
-docker compose exec backend python manage.py createsuperuser
 ```
 
-Then start the frontend locally with `cd frontend && npm run dev` pointing to `http://localhost:8000`.
+The container automatically:
+- Waits for PostgreSQL to be healthy.
+- Runs database migrations.
+- Collects all Django static files.
+- Automatically seeds initial store data (Guelmim store, default users, catalog) if the database is empty.
+
+Access the system immediately at:
+- **Full Application (POS & Management)**: [http://localhost](http://localhost) (port 80)
+- **Django Admin**: [http://localhost/admin/](http://localhost/admin/)
+- **API Documentation & Root**: [http://localhost/api/](http://localhost/api/)
+
+To stop or inspect logs:
+```bash
+# View live backend/frontend logs
+docker compose logs -f
+
+# Gracefully stop the application
+docker compose down
+```
+
+---
+
+## 🏪 Store Deployment & Offline Handover
+
+For deploying the POS system on a **store laptop for non-technical users**, follow our step-by-step guide:
+
+📖 **Full Manual**: See [HANDOVER_AND_DEPLOYMENT_GUIDE.md](HANDOVER_AND_DEPLOYMENT_GUIDE.md)
+
+### Windows Store Automation Scripts:
+| Script | Target User | Action |
+| :--- | :--- | :--- |
+| **`setup_store_laptop.bat`** | Technician / Store Owner | One-time initial setup. Creates desktop shortcut, adds auto-launch at Windows boot, and registers daily automatic backup task. |
+| **`start_pos.bat`** | Cashier / Daily Operator | Double-click to start Docker services silently in background and launch the POS in **standalone app mode** (no browser URL bar, feels like native desktop software). |
+| **`backup_db.bat`** | Scheduled / Owner | Automated database snapshot with 30-day retention. Automatically mirrors backups to plugged-in USB flash drives. |
+| **In-App Backup** | Store Owner | Click *« Sauvegarder la base »* in POS **Paramètres** (`/settings`) to instantly download a JSON snapshot (`pos_backup_YYYYMMDD.json`). |
 
 ---
 
@@ -371,6 +421,7 @@ Key environment variables configurable in `.env`:
 | `/api/returns/` | `GET`, `POST` | Item returns and restocking |
 | `/api/refunds/` | `GET`, `POST` | Refund issuance and approvals |
 | `/api/settings/` | `GET`, `PATCH` | Store details, currency, warranty policies |
+| `/api/settings/backup/` | `GET` | Export complete database snapshot (JSON download) |
 | `/api/printing/receipt/<id>/` | `GET` | Render thermal receipt preview |
 | `/api/printing/barcode/<code>/` | `GET` | Generate barcode vector/image |
 
