@@ -34,10 +34,16 @@ ALLOWED_HOSTS = env.list(
     default=["localhost", "127.0.0.1"],
 )
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=[
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://localhost:80",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+)
 
 
 # Application definition
@@ -129,15 +135,19 @@ elif USE_SQLITE or "makemigrations" in sys.argv:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+elif env("DATABASE_URL", default=""):
+    DATABASES = {
+        "default": env.db("DATABASE_URL")
+    }
 else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": env("POSTGRES_DB"),
-            "USER": env("POSTGRES_USER"),
-            "PASSWORD": env("POSTGRES_PASSWORD"),
-            "HOST": env("POSTGRES_HOST"),
-            "PORT": env("POSTGRES_PORT"),
+            "NAME": env("POSTGRES_DB", default="bighrissen_pos"),
+            "USER": env("POSTGRES_USER", default="pos_user"),
+            "PASSWORD": env("POSTGRES_PASSWORD", default=""),
+            "HOST": env("POSTGRES_HOST", default="localhost"),
+            "PORT": env("POSTGRES_PORT", default="5432"),
         }
     }
 
@@ -178,7 +188,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/django_static/'
+STATIC_ROOT = env("DJANGO_STATIC_ROOT", default=str(BASE_DIR / 'staticfiles'))
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = env("DJANGO_MEDIA_ROOT", default=str(BASE_DIR / 'media'))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

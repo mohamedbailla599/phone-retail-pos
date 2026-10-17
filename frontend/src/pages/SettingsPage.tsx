@@ -43,7 +43,9 @@ import {
   Package,
   DollarSign,
   Calendar,
+  Download,
 } from 'lucide-react';
+import client from '../api/client';
 import { useThemeStore } from '../store/themeStore';
 import { notificationsApi } from '../api/notifications';
 import { useNotificationStore } from '../store/notificationStore';
@@ -57,8 +59,29 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'store' | 'appearance' | 'operators' | 'warranties' | 'notifications'>('store');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleDownloadBackup = async () => {
+    try {
+      setIsDownloadingBackup(true);
+      const response = await client.get('/settings/backup/', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      link.setAttribute('download', `bighrissen_pos_backup_${now}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      setSuccessMessage('Sauvegarde complète de la base de données téléchargée avec succès !');
+    } catch (err: any) {
+      setErrorMessage(err.response?.data?.error || 'Échec du téléchargement de la sauvegarde.');
+    } finally {
+      setIsDownloadingBackup(false);
+    }
+  };
 
   // Digest & Notification State
   const [isScanningAlerts, setIsScanningAlerts] = useState(false);
@@ -358,7 +381,16 @@ export default function SettingsPage() {
             </span>
           }
           actions={
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              <Button
+                variant="secondary"
+                onClick={handleDownloadBackup}
+                loading={isDownloadingBackup}
+                icon={<Download className="w-4 h-4" />}
+                className="text-xs font-semibold"
+              >
+                Sauvegarder la base
+              </Button>
               {activeTab !== 'operators' && activeTab !== 'appearance' && (
                 <Button
                   variant="primary"

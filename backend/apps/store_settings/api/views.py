@@ -84,3 +84,33 @@ class StoreSettingsDetailView(APIView):
                 pass
 
         return Response(StoreSettingsSerializer(updated_instance).data, status=status.HTTP_200_OK)
+
+
+class DatabaseBackupDownloadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if getattr(request.user, "role", None) != "OWNER" and not request.user.is_superuser:
+            return Response(
+                {"error": "Seul le propriétaire peut télécharger une sauvegarde."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        import io
+        import datetime
+        from django.core.management import call_command
+        from django.http import HttpResponse
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        buffer = io.StringIO()
+        call_command(
+            "dumpdata",
+            "--natural-foreign",
+            "--natural-primary",
+            "--indent", "2",
+            stdout=buffer
+        )
+        buffer.seek(0)
+        response = HttpResponse(buffer.getvalue(), content_type="application/json")
+        response["Content-Disposition"] = f'attachment; filename="bighrissen_pos_backup_{timestamp}.json"'
+        return response

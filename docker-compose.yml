@@ -1,37 +1,73 @@
+version: '3.8'
+
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: bighrissen_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bighrissen_pos
+      POSTGRES_USER: pos_user
+      POSTGRES_PASSWORD: pos_secure_password_bighrissen_2026
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos_user -d bighrissen_pos"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - pos_network
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: bighrissen-backend
+    container_name: bighrissen_backend
     restart: unless-stopped
-    env_file:
-      - .env.docker
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
+    environment:
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: "bighrissen-pos-production-key-casablanca-guelmim-2026"
+      POSTGRES_DB: "bighrissen_pos"
+      POSTGRES_USER: "pos_user"
+      POSTGRES_PASSWORD: "pos_secure_password_bighrissen_2026"
+      POSTGRES_HOST: "db"
+      POSTGRES_PORT: "5432"
+      DATABASE_URL: "postgresql://pos_user:pos_secure_password_bighrissen_2026@db:5432/bighrissen_pos"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,backend,*"
+      CSRF_TRUSTED_ORIGINS: "http://localhost,http://127.0.0.1,http://localhost:80"
+      DJANGO_STATIC_ROOT: "/var/www/django_static"
+      DJANGO_MEDIA_ROOT: "/var/www/media"
     depends_on:
       db:
         condition: service_healthy
-
-  db:
-    image: postgres:17
-    container_name: bighrissen-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${POSTGRES_PORT}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      - django_static:/var/www/django_static
+      - media_data:/var/www/media
+    networks:
+      - pos_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bighrissen_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    volumes:
+      - django_static:/var/www/django_static:ro
+      - media_data:/var/www/media:ro
+    networks:
+      - pos_network
 
 volumes:
   postgres_data:
+  django_static:
+  media_data:
+
+networks:
+  pos_network:
+    driver: bridge
