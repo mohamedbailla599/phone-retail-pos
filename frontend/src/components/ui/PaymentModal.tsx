@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Loader2, Banknote, CreditCard, User, AlertCircle, ArrowRight, Split } from 'lucide-react';
+import { X, Loader2, Banknote, CreditCard, User, AlertCircle, ArrowRight, Split, CheckCircle } from 'lucide-react';
 import Button from './Button';
 import PriceDisplay from './PriceDisplay';
 
@@ -23,6 +23,7 @@ interface PaymentModalProps {
     amount: string,
     splitDetails?: { cash: string; debt: string }
   ) => Promise<void>;
+  onFinalize?: () => Promise<void> | void;
 }
 
 export default function PaymentModal({
@@ -33,6 +34,7 @@ export default function PaymentModal({
   customer,
   onSelectCustomerRequest,
   onConfirm,
+  onFinalize,
 }: PaymentModalProps) {
   const [method, setMethod] = useState<'CASH' | 'BANK_TRANSFER' | 'DEBT' | 'MIXED'>('CASH');
   const [amount, setAmount] = useState<string>('');
@@ -45,7 +47,7 @@ export default function PaymentModal({
 
   useEffect(() => {
     if (isOpen) {
-      setAmount(remainingDue > 0 ? remainingDue.toFixed(2) : totalAmount.toFixed(2));
+      setAmount(remainingDue > 0 ? remainingDue.toFixed(2) : '0.00');
       setCashAmount('0');
       setMethod('CASH');
       setError('');
@@ -53,6 +55,52 @@ export default function PaymentModal({
   }, [isOpen, totalAmount, remainingDue]);
 
   if (!isOpen) return null;
+
+  if (remainingDue <= 0.009 && totalAmount > 0) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="w-full max-w-md glass-panel rounded-[var(--radius-xl)] shadow-2xl border border-border/50 animate-in zoom-in-95 duration-200 overflow-hidden p-6 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 mb-4">
+            <CheckCircle className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-text mb-1">Vente Entièrement Réglée</h2>
+          <p className="text-xs text-text-muted mb-4 leading-relaxed">
+            Les paiements ont déjà été confirmés pour cette vente ({totalAmount.toFixed(2)} DH). Vous pouvez finaliser la vente pour clôturer et imprimer le ticket.
+          </p>
+          <div className="space-y-2">
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full font-bold shadow-lg flex items-center justify-center gap-2"
+              disabled={loading}
+              onClick={async () => {
+                if (onFinalize) {
+                  setLoading(true);
+                  try {
+                    await onFinalize();
+                  } finally {
+                    setLoading(false);
+                  }
+                }
+              }}
+              icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
+            >
+              {loading ? 'Finalisation...' : 'Finaliser la vente & Imprimer'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full text-xs text-text-muted hover:text-text"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Fermer
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const currentDebt = customer ? parseFloat(customer.current_debt || '0') : 0;
   const creditLimit = customer ? parseFloat(customer.credit_limit || '0') : 0;
@@ -402,6 +450,18 @@ export default function PaymentModal({
             </div>
           )}
 
+          {/* Informative box for Bank Transfer */}
+          {method === 'BANK_TRANSFER' && (
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-300 space-y-1">
+              <span className="font-bold flex items-center gap-1.5 text-blue-400">
+                <CreditCard className="w-4 h-4" /> Virement en attente de réception
+              </span>
+              <p className="text-[11px] text-blue-200/90 leading-relaxed">
+                Le virement sera enregistré en attente. Vous pourrez vérifier votre téléphone ou votre application bancaire, puis cliquer sur « Reprendre le paiement » pour finaliser la vente dès réception.
+              </p>
+            </div>
+          )}
+
           {/* Simple Amount Input for CASH, DEBT, or BANK_TRANSFER */}
           {method !== 'MIXED' && (
             <div className="space-y-1.5">
@@ -460,7 +520,7 @@ export default function PaymentModal({
               : method === 'DEBT'
               ? `Confirmer la Vente à Crédit (${parseFloat(amount || '0').toFixed(2)} DH)`
               : method === 'BANK_TRANSFER'
-              ? `Enregistrer le Virement (${parseFloat(amount || '0').toFixed(2)} DH)`
+              ? `Enregistrer le Virement en Attente (${parseFloat(amount || '0').toFixed(2)} DH)`
               : `Valider le Paiement Espèces (${parseFloat(amount || '0').toFixed(2)} DH)`}
           </Button>
         </form>

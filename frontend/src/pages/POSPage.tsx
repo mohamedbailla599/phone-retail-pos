@@ -263,10 +263,25 @@ export default function POSPage() {
     }
   };
 
-  const handleCheckoutClick = () => {
-    if (transaction?.status === 'PENDING_PAYMENT' && (transaction.pending_payments?.length ?? 0) > 0) {
-      setIsPendingPaymentModalOpen(true);
-      return;
+  const handleCheckoutClick = async () => {
+    if (transaction?.status === 'PENDING_PAYMENT') {
+      if ((transaction.pending_payments?.length ?? 0) > 0) {
+        setIsPendingPaymentModalOpen(true);
+        return;
+      }
+      const paid = parseFloat(transaction.confirmed_paid || '0');
+      const total = parseFloat(transaction.total_amount || '0');
+      if (paid >= total - 0.009) {
+        try {
+          const finalTx = await posApi.completeSale(transaction.id);
+          setTransaction(finalTx);
+          setSuccessMsg(`Vente finalisée avec succès ! Reçu : ${finalTx.receipt_id || finalTx.id}`);
+          loadCatalog();
+        } catch (e: any) {
+          setErrorMsg(e.response?.data?.error || "Échec de finalisation de la vente");
+        }
+        return;
+      }
     }
 
     if (!operator) {
@@ -323,7 +338,7 @@ export default function POSPage() {
       setIsPaymentModalOpen(false);
 
       if (method === 'BANK_TRANSFER') {
-        setSuccessMsg(`Virement bancaire enregistré en attente de confirmation.`);
+        setSuccessMsg(`Virement bancaire enregistré en attente. Vérifiez votre téléphone et cliquez sur « Reprendre le paiement » pour valider.`);
       } else {
         const total = parseFloat(updatedTx.total_amount || '0');
         const paid = parseFloat(updatedTx.confirmed_paid || '0');
@@ -350,19 +365,25 @@ export default function POSPage() {
       const updatedTx = await posApi.confirmPayment(transaction.id, paymentId);
       setTransaction(updatedTx);
       setIsPendingPaymentModalOpen(false);
-      setSuccessMsg("Payment confirmed.");
       
       // Attempt to complete sale if fully paid
       try {
         const finalTx = await posApi.completeSale(transaction.id);
         setTransaction(finalTx);
-        setSuccessMsg(`Sale completed successfully! Receipt: ${finalTx.receipt_id || finalTx.id}`);
-      } catch (e: any) {
-        // Just means it wasn't fully paid or another error
+        setSuccessMsg(`Vente finalisée avec succès par virement bancaire ! Reçu : ${finalTx.receipt_id || finalTx.id}`);
+      } catch (err: any) {
+        console.error("Sale completion note:", err);
+        const total = parseFloat(updatedTx.total_amount || '0');
+        const paid = parseFloat(updatedTx.confirmed_paid || '0');
+        if (paid < total - 0.009) {
+          setSuccessMsg(`Virement bancaire confirmé. Reste à régler : ${(total - paid).toFixed(2)} DH.`);
+        } else {
+          setErrorMsg(err.response?.data?.error || "Paiement confirmé mais la finalisation de la vente a échoué.");
+        }
       }
       loadCatalog();
     } catch (e: any) {
-      setErrorMsg(e.response?.data?.error || "Failed to confirm payment");
+      setErrorMsg(e.response?.data?.error || "Échec de la confirmation du virement");
     }
   };
 
@@ -372,9 +393,23 @@ export default function POSPage() {
       const updatedTx = await posApi.rejectPayment(transaction.id, paymentId);
       setTransaction(updatedTx);
       setIsPendingPaymentModalOpen(false);
-      setErrorMsg("Bank transfer rejected. Please retry payment.");
+      setErrorMsg("Virement bancaire annulé. Vous pouvez choisir un autre mode de paiement.");
+      loadCatalog();
     } catch (e: any) {
-      setErrorMsg(e.response?.data?.error || "Failed to reject payment");
+      setErrorMsg(e.response?.data?.error || "Échec de l'annulation du virement");
+    }
+  };
+
+  const handleFinalizePaidSale = async () => {
+    if (!transaction?.id) return;
+    try {
+      const finalTx = await posApi.completeSale(transaction.id);
+      setTransaction(finalTx);
+      setIsPaymentModalOpen(false);
+      setSuccessMsg(`Vente finalisée avec succès ! Reçu : ${finalTx.receipt_id || finalTx.id}`);
+      loadCatalog();
+    } catch (e: any) {
+      setErrorMsg(e.response?.data?.error || "Échec de finalisation de la vente");
     }
   };
 
@@ -470,15 +505,25 @@ export default function POSPage() {
         {/* LEFT: Product search & catalog */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border relative">
           {successMsg && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-sm font-medium rounded-lg shadow-lg">
-              {successMsg}
-              <button onClick={startNewSale} className="ml-4 underline hover:text-emerald-400">Start New Sale</button>
+            <div className="absolute top-3 right-6 z-30 max-w-md px-4 py-2.5 bg-surface border border-emerald-500/40 text-emerald-400 text-xs font-semibold rounded-xl shadow-xl flex items-center justify-between gap-3 animate-in fade-in duration-150">
+              <span>{successMsg}</span>
+              {isCompleted ? (
+                <button onClick={startNewSale} className="px-2 py-1 text-[11px] rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold transition-colors cursor-pointer">
+                  Nouvelle Vente
+                </button>
+              ) : (
+                <button onClick={() => setSuccessMsg('')} className="p-1 hover:text-white transition-colors cursor-pointer text-sm font-bold leading-none">
+                  &times;
+                </button>
+              )}
             </div>
           )}
           {errorMsg && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-medium rounded-lg shadow-lg">
-              {errorMsg}
-              <button onClick={() => setErrorMsg('')} className="ml-4 hover:text-red-400">&times;</button>
+            <div className="absolute top-3 right-6 z-30 max-w-md px-4 py-2.5 bg-surface border border-red-500/40 text-red-400 text-xs font-semibold rounded-xl shadow-xl flex items-center justify-between gap-3 animate-in fade-in duration-150">
+              <span>{errorMsg}</span>
+              <button onClick={() => setErrorMsg('')} className="p-1 hover:text-white transition-colors cursor-pointer text-sm font-bold leading-none">
+                &times;
+              </button>
             </div>
           )}
           
@@ -941,7 +986,13 @@ export default function POSPage() {
                   disabled={!transaction?.items?.length || (!isDraft && !isPendingPayment)}
                   onClick={handleCheckoutClick}
                 >
-                  {transaction?.status === 'PENDING_PAYMENT' ? 'Reprendre le paiement' : 'Finaliser la vente'}
+                  {transaction?.status === 'PENDING_PAYMENT'
+                    ? (parseFloat(transaction.confirmed_paid || '0') >= parseFloat(transaction.total_amount || '0') - 0.009
+                        ? 'Finaliser la vente (Payée)'
+                        : (transaction.pending_payments?.length ?? 0) > 0
+                        ? 'Reprendre le paiement (Virement en attente)'
+                        : 'Reprendre le paiement')
+                    : 'Finaliser la vente'}
                 </Button>
                 {transaction?.status === 'PENDING_PAYMENT' ? (
                   <div className="flex items-center justify-between gap-2 pt-1">
@@ -1017,6 +1068,7 @@ export default function POSPage() {
           setIsCustomerModalOpen(true);
         }}
         onConfirm={handlePaymentConfirm}
+        onFinalize={handleFinalizePaidSale}
       />
 
       <SelectCustomerModal
