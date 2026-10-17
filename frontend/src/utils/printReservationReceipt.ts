@@ -1,16 +1,21 @@
 import { type Reservation } from '../api/reservations';
-import { printThermalReceipt } from './printReceipt';
-
-interface StoreSettings {
-  store_name?: string;
-  address?: string;
-  phone_number?: string;
-}
+import {
+  printThermalReceipt,
+  getReceiptStoreInfo,
+  generateBarcodeSvg,
+  renderReceiptHeader,
+} from './printReceipt';
 
 export function generateReservationReceiptHtml(
   reservation: Reservation,
-  settings?: StoreSettings | null
+  settingsOverride?: any
 ): string {
+  const storeInfo = getReceiptStoreInfo();
+  // Allow manual overrides if provided
+  const currency = settingsOverride?.currency || storeInfo.currency;
+  const footerMessage = settingsOverride?.receipt_footer_message || storeInfo.footerMessage;
+  const disclaimer = storeInfo.disclaimer;
+
   const isCompleted = reservation.status === 'COMPLETED';
   const isCancelled = reservation.status === 'CANCELLED';
 
@@ -30,15 +35,13 @@ export function generateReservationReceiptHtml(
     }
   };
 
-  const storeName = settings?.store_name || 'BIGHRISSEN PHONE';
-  const storeAddress = settings?.address || 'Boulevard Hassan II, Agadir';
-  const storePhone = settings?.phone_number || '+212 600-000000';
-
   const title = isCompleted
     ? 'FACTURE / BON DE LIVRAISON'
     : isCancelled
     ? "BON D'ANNULATION & REMBOURSEMENT"
     : 'BON DE RÉSERVATION';
+
+  const barcodeSvg = generateBarcodeSvg(reservation.reservation_number, 28, 1.25);
 
   const paymentsHtml =
     reservation.payments && reservation.payments.length > 0
@@ -52,7 +55,7 @@ export function generateReservationReceiptHtml(
             <span>${p.method === 'CASH' ? 'Espèces' : p.method === 'BANK_TRANSFER' ? 'Virement' : 'Crédit'}${
               p.reference ? ` (${p.reference})` : ''
             }</span>
-            <span class="font-bold mono">${parseFloat(p.amount).toFixed(2)} DH</span>
+            <span class="font-bold mono">${parseFloat(p.amount).toFixed(2)} ${currency}</span>
           </div>
         `
           )
@@ -62,18 +65,15 @@ export function generateReservationReceiptHtml(
       : '';
 
   return `
-    <div class="receipt-container">
-      <!-- Store Header -->
-      <div class="text-center border-b-dashed pb-2">
-        <div class="text-base font-bold uppercase">${storeName}</div>
-        <div class="text-xxs muted">${storeAddress}</div>
-        <div class="text-xxs muted">Tél: ${storePhone}</div>
-      </div>
+    <div class="ticket-section">
+      <!-- Store Header with Logo -->
+      ${renderReceiptHeader('RÉSERVATIONS & ACOMPTES')}
 
       <!-- Receipt Meta & Type -->
       <div class="text-center my-2 border-box">
         <div class="text-xxs uppercase tracking-wider font-bold">*** ${title} ***</div>
         <div class="text-base font-bold mono">N° ${reservation.reservation_number}</div>
+        ${barcodeSvg ? `<div class="barcode-container my-1">${barcodeSvg}</div>` : ''}
         ${
           isCompleted
             ? `<div class="text-xxs font-bold uppercase" style="color: #047857; margin-top: 2px;">VENTE FINALISÉE & LIVRÉ</div>`
@@ -149,22 +149,22 @@ export function generateReservationReceiptHtml(
       <div class="border-b-dashed text-xs py-1">
         <div class="flex justify-between py-05">
           <span>Prix convenu:</span>
-          <span class="font-bold mono">${parseFloat(reservation.reserved_price).toFixed(2)} DH</span>
+          <span class="font-bold mono">${parseFloat(reservation.reserved_price).toFixed(2)} ${currency}</span>
         </div>
         <div class="flex justify-between py-05 font-bold" style="color: #047857;">
           <span>${isCompleted ? 'Total encaissé:' : 'Acompte versé:'}</span>
-          <span class="mono">- ${parseFloat(reservation.paid_amount).toFixed(2)} DH</span>
+          <span class="mono">- ${parseFloat(reservation.paid_amount).toFixed(2)} ${currency}</span>
         </div>
         <div class="flex justify-between py-1 border-t font-bold text-sm mt-1" style="border-top: 1px solid #000;">
           <span>SOLDE RESTANT:</span>
-          <span class="mono">${parseFloat(reservation.remaining_balance).toFixed(2)} DH</span>
+          <span class="mono">${parseFloat(reservation.remaining_balance).toFixed(2)} ${currency}</span>
         </div>
       </div>
 
       <!-- Payments Detail -->
       ${paymentsHtml}
 
-      <!-- Footer Notices -->
+      <!-- Status Notices -->
       <div class="text-center text-xxs muted pt-2" style="line-height: 1.4;">
         ${
           isCompleted
@@ -181,7 +181,12 @@ export function generateReservationReceiptHtml(
           <div>Prière de présenter ce bon lors du retrait de votre téléphone.</div>
         `
         }
-        <div class="mt-2 font-bold" style="color: #000;">Merci de votre confiance !</div>
+      </div>
+
+      <!-- Unified Store Footer -->
+      <div class="text-center text-xxs mt-3 pt-2 border-t-dashed space-y-1">
+        <p class="font-bold whitespace-pre-line">${footerMessage}</p>
+        <p class="text-[9px] text-gray-700">${disclaimer}</p>
       </div>
     </div>
   `;
@@ -189,7 +194,7 @@ export function generateReservationReceiptHtml(
 
 export function printReservationReceipt(
   reservation: Reservation,
-  settings?: StoreSettings | null
+  settings?: any
 ) {
   const html = generateReservationReceiptHtml(reservation, settings);
   const title = `Recu_${reservation.reservation_number}`;

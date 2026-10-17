@@ -1,7 +1,10 @@
 import type { RepairTicket } from '../api/repairs';
-import { printThermalReceipt } from './printReceipt';
-import { useSettingsStore } from '../store/settingsStore';
-import JsBarcode from 'jsbarcode';
+import {
+  printThermalReceipt,
+  getReceiptStoreInfo,
+  generateBarcodeSvg,
+  renderReceiptHeader,
+} from './printReceipt';
 
 const ISSUE_TYPE_FR: Record<string, string> = {
   SCREEN: 'Écran / Vitre cassée',
@@ -16,31 +19,12 @@ const ISSUE_TYPE_FR: Record<string, string> = {
   OTHER: 'Autre panne / Diagnostic global',
 };
 
-function generateBarcodeSvg(value: string, height: number = 30, width: number = 1.3): string {
-  if (!value) return '';
-  try {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    JsBarcode(svg, value, {
-      format: 'CODE128',
-      width,
-      height,
-      displayValue: false,
-      margin: 0,
-      background: '#ffffff',
-      lineColor: '#000000',
-    });
-    return svg.outerHTML;
-  } catch (err) {
-    console.error('Error generating barcode SVG:', err);
-    return '';
-  }
-}
-
 export function printRepairIntakeReceipt(ticket: RepairTicket) {
-  const settings = useSettingsStore.getState().settings;
-  const storeName = settings?.store_name || 'BIGHRISSEN PHONE';
-  const storePhone = settings?.phone_number || '';
-  const storeAddress = settings?.address || '';
+  const storeInfo = getReceiptStoreInfo();
+  const storeName = storeInfo.storeName;
+  const currency = storeInfo.currency;
+  const footerMessage = storeInfo.footerMessage;
+  const disclaimer = storeInfo.disclaimer;
 
   const dateStr = new Date(ticket.created_at).toLocaleString('fr-FR', {
     day: '2-digit',
@@ -74,21 +58,12 @@ export function printRepairIntakeReceipt(ticket: RepairTicket) {
 
   const ticketBarcodeSvg = generateBarcodeSvg(ticket.ticket_number, 32, 1.25);
 
-  const storeContactHtml =
-    storePhone || storeAddress
-      ? `<div class="text-xxs">${[storePhone ? `Tél: ${storePhone}` : '', storeAddress].filter(Boolean).join(' • ')}</div>`
-      : '';
-
   const html = `
     <!-- ============================================== -->
     <!-- VOLET 1 : EXEMPLAIRE CLIENT (REÇU DE DÉPÔT)    -->
     <!-- ============================================== -->
     <div class="ticket-section">
-      <div class="text-center border-b-dashed pb-2">
-        <div class="font-bold text-base uppercase">${storeName}</div>
-        <div class="text-xs">Service Maintenance & Réparation</div>
-        ${storeContactHtml}
-      </div>
+      ${renderReceiptHeader('Service Maintenance & Réparation')}
 
       <div class="text-center my-2 border-box">
         <div class="text-xxs uppercase tracking-wider font-bold">TICKET DE DÉPÔT / RÉCEPTION</div>
@@ -166,15 +141,15 @@ export function printRepairIntakeReceipt(ticket: RepairTicket) {
       <div class="border-b-dashed py-1 text-xs">
         <div class="flex justify-between py-05">
           <span>Coût estimatif:</span>
-          <span class="font-bold">${estCost.toFixed(2)} DH</span>
+          <span class="font-bold">${estCost.toFixed(2)} ${currency}</span>
         </div>
         <div class="flex justify-between py-05">
           <span>Acompte versé:</span>
-          <span class="font-bold">${deposit.toFixed(2)} DH</span>
+          <span class="font-bold">${deposit.toFixed(2)} ${currency}</span>
         </div>
         <div class="flex justify-between py-05 border-b-dotted font-bold">
           <span>Reste à payer:</span>
-          <span>${balance.toFixed(2)} DH</span>
+          <span>${balance.toFixed(2)} ${currency}</span>
         </div>
         <div class="flex justify-between py-05 text-xxs mt-1">
           <span>Date prévue:</span>
@@ -183,13 +158,15 @@ export function printRepairIntakeReceipt(ticket: RepairTicket) {
       </div>
 
       <div class="text-xxs text-center mt-2 px-1">
-        <p class="font-bold mb-1">CONDITIONS GÉNÉRALES :</p>
+        <p class="font-bold whitespace-pre-line mb-1">${footerMessage}</p>
+        <p class="font-bold mb-05 text-[10px]">CONDITIONS GÉNÉRALES :</p>
         <p>1. La présentation de ce ticket original est obligatoire pour retirer l'appareil.</p>
         <p>2. L'atelier n'est pas responsable de la perte de données (sauvegarde requise préalable).</p>
         <p>3. Tout appareil non retiré après 60 jours sera considéré comme abandonné.</p>
+        <p class="text-[9px] text-gray-700 mt-1">${disclaimer}</p>
       </div>
 
-      <div class="mt-3 text-center text-xxs font-bold">
+      <div class="mt-2 text-center text-xxs font-bold">
         Conservez précieusement ce ticket
       </div>
     </div>
@@ -271,15 +248,15 @@ export function printRepairIntakeReceipt(ticket: RepairTicket) {
       <div class="py-1 text-xs">
         <div class="flex justify-between py-05">
           <span>Coût estimatif:</span>
-          <span class="font-bold">${estCost.toFixed(2)} DH</span>
+          <span class="font-bold">${estCost.toFixed(2)} ${currency}</span>
         </div>
         <div class="flex justify-between py-05">
           <span>Acompte versé:</span>
-          <span>${deposit.toFixed(2)} DH</span>
+          <span>${deposit.toFixed(2)} ${currency}</span>
         </div>
         <div class="flex justify-between py-05 font-bold">
           <span>Reste à payer:</span>
-          <span>${balance.toFixed(2)} DH</span>
+          <span>${balance.toFixed(2)} ${currency}</span>
         </div>
       </div>
     </div>
@@ -289,10 +266,10 @@ export function printRepairIntakeReceipt(ticket: RepairTicket) {
 }
 
 export function printRepairDeliveryReceipt(ticket: RepairTicket) {
-  const settings = useSettingsStore.getState().settings;
-  const storeName = settings?.store_name || 'BIGHRISSEN PHONE';
-  const storePhone = settings?.phone_number || '';
-  const storeAddress = settings?.address || '';
+  const storeInfo = getReceiptStoreInfo();
+  const currency = storeInfo.currency;
+  const footerMessage = storeInfo.footerMessage;
+  const disclaimer = storeInfo.disclaimer;
 
   const deliveryDateStr = new Date(ticket.delivered_at || new Date()).toLocaleString('fr-FR', {
     day: '2-digit',
@@ -313,20 +290,12 @@ export function printRepairDeliveryReceipt(ticket: RepairTicket) {
 
   const ticketBarcodeSvg = generateBarcodeSvg(ticket.ticket_number, 30, 1.25);
 
-  const storeContactHtml =
-    storePhone || storeAddress
-      ? `<div class="text-xxs">${[storePhone ? `Tél: ${storePhone}` : '', storeAddress].filter(Boolean).join(' • ')}</div>`
-      : '';
-
   const html = `
-    <div class="text-center border-b-dashed pb-2">
-      <div class="font-bold text-base uppercase">${storeName}</div>
-      <div class="text-xs">Atelier Spécialisé Smartphones</div>
-      ${storeContactHtml}
-    </div>
+    <div class="ticket-section">
+      ${renderReceiptHeader('Facture Réparation & Garantie')}
 
-    <div class="text-center my-2 border-box">
-      <div class="text-xxs uppercase tracking-wider font-bold">FACTURE RÉPARATION & GARANTIE</div>
+      <div class="text-center my-2 border-box">
+        <div class="text-xxs uppercase tracking-wider font-bold">BON DE LIVRAISON APPAREIL</div>
       <div class="text-base font-bold font-mono">${ticket.ticket_number}</div>
       <div class="barcode-container my-1">${ticketBarcodeSvg}</div>
       <div class="text-xxs">Livré le: ${deliveryDateStr}</div>
@@ -375,20 +344,20 @@ export function printRepairDeliveryReceipt(ticket: RepairTicket) {
     <div class="border-b-dashed py-1 text-xs">
       <div class="flex justify-between py-05">
         <span>Montant Total Réparation:</span>
-        <span class="font-bold">${finalCost.toFixed(2)} DH</span>
+        <span class="font-bold">${finalCost.toFixed(2)} ${currency}</span>
       </div>
       ${
         deposit > 0
           ? `
       <div class="flex justify-between py-05 text-xxs">
         <span>Acompte initial déduit:</span>
-        <span>-${deposit.toFixed(2)} DH</span>
+        <span>-${deposit.toFixed(2)} ${currency}</span>
       </div>`
           : ''
       }
       <div class="flex justify-between py-1 border-b-double text-sm font-bold">
         <span>Règlement final reçu:</span>
-        <span>${remainingPaid.toFixed(2)} DH</span>
+        <span>${remainingPaid.toFixed(2)} ${currency}</span>
       </div>
       <div class="flex justify-between py-05 text-xxs mt-1">
         <span>Mode de règlement:</span>
@@ -402,9 +371,9 @@ export function printRepairDeliveryReceipt(ticket: RepairTicket) {
       <div class="text-xxs text-gray-600">Exclut la casse, l'oxydation liquide et les chutes postérieures.</div>
     </div>
 
-    <div class="text-center mt-3 text-xxs">
-      <p class="font-bold">Merci de votre confiance !</p>
-      <p>${storeName} - Votre partenaire High-Tech</p>
+    <div class="text-center mt-3 text-xxs space-y-1">
+      <p class="font-bold whitespace-pre-line">${footerMessage}</p>
+      <p class="text-[9px] text-gray-700">${disclaimer}</p>
     </div>
   `;
 

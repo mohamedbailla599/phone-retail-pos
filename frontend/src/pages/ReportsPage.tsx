@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { reportsApi, type ZReportData } from '../api/reports';
 import { useAuthStore } from '../store/authStore';
-import ZReportReceiptPrint from '../components/reports/ZReportReceiptPrint';
+import ZReportReceiptPrint, { printZReport } from '../components/reports/ZReportReceiptPrint';
 import PageContainer from '../components/ui/PageContainer';
 import PageHeader from '../components/ui/PageHeader';
 import StatCard from '../components/ui/StatCard';
@@ -89,7 +89,11 @@ export default function ReportsPage() {
   }, [fetchReport]);
 
   const handlePrintZReport = () => {
-    window.print();
+    if (data) {
+      printZReport(data, operatorLabel);
+    } else {
+      window.print();
+    }
   };
 
   const operatorLabel = operator?.display_name || user?.display_name || 'Bighrissen Admin';

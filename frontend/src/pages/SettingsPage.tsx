@@ -73,7 +73,7 @@ export default function SettingsPage() {
     store_name: '',
     phone_number: '',
     address: '',
-    currency: 'MAD',
+    currency: 'DH',
     receipt_prefix: 'BP',
     receipt_footer_message: '',
     owner_email: '',
@@ -529,7 +529,7 @@ export default function SettingsPage() {
                         icon={<Phone className="w-4 h-4" />}
                         value={formData.phone_number || ''}
                         onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                        placeholder="+212 600-000000"
+                        placeholder="+212 617-646824"
                       />
                     </div>
                   </div>
@@ -540,7 +540,7 @@ export default function SettingsPage() {
                       icon={<MapPin className="w-4 h-4" />}
                       value={formData.address || ''}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      placeholder="Ex: Boulevard Hassan II, Agadir"
+                      placeholder="Ex: Boulevard Youssef Bin Tachfine, Guelmim"
                     />
                   </div>
 
@@ -548,9 +548,9 @@ export default function SettingsPage() {
                     <div>
                       <Input
                         label="Devise Monétaire"
-                        value={formData.currency || 'MAD'}
+                        value={formData.currency || 'DH'}
                         onChange={(e) => setFormData({ ...formData, currency: e.target.value.toUpperCase() })}
-                        placeholder="MAD"
+                        placeholder="DH"
                       />
                     </div>
                     <div>
@@ -604,18 +604,25 @@ export default function SettingsPage() {
 
                   {/* Simulator Box */}
                   <div className="bg-white text-black p-4 rounded-xl font-mono text-[11px] shadow-inner space-y-3 leading-tight select-none border border-neutral-300">
-                    <div className="text-center pb-2 border-b border-black border-dashed">
-                      <p className="text-sm font-bold uppercase tracking-wider">
-                        {formData.store_name || 'BIGHRISSEN PHONE'}
-                      </p>
-                      <p className="text-[10px] mt-0.5">{formData.address || 'Boulevard Hassan II, Agadir'}</p>
-                      <p className="text-[10px]">Tél : {formData.phone_number || '+212 600-000000'}</p>
+                    <div className="flex items-center gap-3 pb-2 border-b border-black border-dashed">
+                      <img
+                        src="/logo.jpg"
+                        alt="Logo"
+                        className="w-12 h-12 rounded-full border border-black object-cover shrink-0"
+                      />
+                      <div className="min-w-0 text-left">
+                        <p className="text-sm font-bold uppercase tracking-wider leading-tight">
+                          {formData.store_name || 'BIGHRISSEN PHONE'}
+                        </p>
+                        <p className="text-[10px] mt-0.5 leading-tight">{formData.address || 'Boulevard Youssef Bin Tachfine, Guelmim'}</p>
+                        <p className="text-[10px] leading-tight">Tél : {formData.phone_number || '+212 617-646824'}</p>
+                      </div>
                     </div>
 
                     <div className="space-y-0.5 text-[10px] border-b border-black border-dashed pb-2">
                       <p>Ticket : {formData.receipt_prefix || 'BP'}-20261014-001</p>
                       <p>Date : 14/10/2026 14:30</p>
-                      <p>Opérateur : {currentOperator?.display_name || 'Hassan'}</p>
+                      <p>Opérateur : {currentOperator?.display_name || 'Mohamed'}</p>
                       <p>Client : Client de Passage</p>
                     </div>
 
@@ -626,7 +633,7 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex justify-between text-[10px]">
                         <span>iPhone 15 Pro (128GB)</span>
-                        <span>8,900.00 DH</span>
+                        <span>8,900.00 {formData.currency || 'DH'}</span>
                       </div>
                       <div className="text-[9px] text-gray-500">IMEI: 352981098765432</div>
                     </div>
@@ -634,11 +641,11 @@ export default function SettingsPage() {
                     <div className="border-b border-black border-dashed pb-2 space-y-0.5 text-[10px]">
                       <div className="flex justify-between font-bold text-xs pt-1">
                         <span>TOTAL :</span>
-                        <span>8,900.00 {formData.currency || 'MAD'}</span>
+                        <span>8,900.00 {formData.currency || 'DH'}</span>
                       </div>
                       <div className="flex justify-between text-gray-700">
                         <span>Mode : Espèces</span>
-                        <span>8,900.00 {formData.currency || 'MAD'}</span>
+                        <span>8,900.00 {formData.currency || 'DH'}</span>
                       </div>
                     </div>
 

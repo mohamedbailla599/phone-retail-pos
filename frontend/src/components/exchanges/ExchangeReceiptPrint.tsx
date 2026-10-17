@@ -1,5 +1,10 @@
 import type { Exchange } from '../../api/exchanges';
-import { printThermalReceipt } from '../../utils/printReceipt';
+import {
+  printThermalReceipt,
+  getReceiptStoreInfo,
+  generateBarcodeSvg,
+  renderReceiptHeader,
+} from '../../utils/printReceipt';
 
 interface ExchangeReceiptPrintProps {
   exchange: Exchange | null;
@@ -7,14 +12,16 @@ interface ExchangeReceiptPrintProps {
 }
 
 export function generateExchangeReceiptHtml(exchange: Exchange, operator?: any): string {
+  const storeInfo = getReceiptStoreInfo();
+
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) {
-      return new Intl.DateTimeFormat('en-GB', {
+      return new Intl.DateTimeFormat('fr-FR', {
         dateStyle: 'short',
         timeStyle: 'short',
       }).format(new Date());
     }
-    return new Intl.DateTimeFormat('en-GB', {
+    return new Intl.DateTimeFormat('fr-FR', {
       dateStyle: 'short',
       timeStyle: 'short',
     }).format(new Date(dateStr));
@@ -28,134 +35,135 @@ export function generateExchangeReceiptHtml(exchange: Exchange, operator?: any):
     exchange.completed_by_name ||
     operator?.display_name ||
     operator?.username ||
-    'Staff';
+    'Mohamed';
 
   const replacementName =
     exchange.new_device_product_name ||
-    `Store Device #${exchange.new_device}`;
+    `Appareil Boutique #${exchange.new_device}`;
 
   const settlementLabel =
     exchange.financial_direction === 'CUSTOMER_PAYS'
-      ? 'CUSTOMER PAID'
+      ? 'DIFFÉRENCE PAYÉE PAR CLIENT'
       : exchange.financial_direction === 'STORE_REFUNDS'
-      ? 'STORE REFUND'
-      : 'EVEN TRADE';
+      ? 'DIFFÉRENCE REMBOURSÉE PAR BOUTIQUE'
+      : 'ÉCHANGE DIRECT ÉQUILIBRÉ';
+
+  const barcodeSvg = generateBarcodeSvg(exchange.exchange_number, 28, 1.25);
 
   return `
-    <div class="receipt-container">
-      <!-- Store Header -->
-      <div class="text-center border-b-dashed">
-        <div class="text-base font-bold uppercase">BIGHRISSEN PHONE</div>
-        <div class="text-xs font-bold mt-1">DEVICE EXCHANGE & TRADE-IN</div>
-        <div class="text-xxs muted">Boulevard Hassan II, Casablanca</div>
-        <div class="text-xxs muted">Tel: +212 522 000 000</div>
-      </div>
+    <div class="ticket-section">
+      <!-- En-tête boutique unifié avec logo -->
+      ${renderReceiptHeader('ÉCHANGE & REPRISE SMARTPHONE')}
 
-      <!-- Exchange Meta -->
-      <div class="border-b-dashed text-xs">
-        <div class="flex justify-between py-05">
-          <span>EXCHANGE #:</span>
-          <span class="font-bold mono">${exchange.exchange_number}</span>
+      <!-- Méta de l'échange & Code-barres -->
+      <div class="border-b-dashed text-xs py-1">
+        <div class="flex justify-between py-05 font-bold">
+          <span>BON ÉCHANGE N° :</span>
+          <span class="mono">${exchange.exchange_number}</span>
         </div>
-        <div class="flex justify-between py-05">
-          <span>DATE:</span>
+        ${barcodeSvg ? `<div class="barcode-container my-1">${barcodeSvg}</div>` : ''}
+        <div class="flex justify-between py-05 text-xxs">
+          <span>Date :</span>
           <span>${formatDate(exchange.completed_at || exchange.created_at)}</span>
         </div>
-        <div class="flex justify-between py-05">
-          <span>OPERATOR:</span>
+        <div class="flex justify-between py-05 text-xxs">
+          <span>Opérateur :</span>
           <span>${operatorName}</span>
         </div>
-        <div class="flex justify-between py-05 border-b-dotted">
-          <span>CUSTOMER:</span>
-          <span class="font-bold">${exchange.customer_name || 'Walk-in'}</span>
+        <div class="flex justify-between py-05 text-xxs border-b-dotted">
+          <span>Client :</span>
+          <span class="font-bold">${exchange.customer_name || 'Client de Passage'}</span>
         </div>
-        <div class="flex justify-between py-05">
-          <span>TEL:</span>
-          <span>${exchange.customer_phone || 'N/A'}</span>
-        </div>
+        ${
+          exchange.customer_phone
+            ? `
+        <div class="flex justify-between py-05 text-xxs">
+          <span>Tél Client :</span>
+          <span class="mono">${exchange.customer_phone}</span>
+        </div>`
+            : ''
+        }
       </div>
 
-      <!-- Section 1: Trade-in Device (Intake) -->
-      <div class="border-b-dashed">
+      <!-- Volet 1: Appareil Repris (Entrée Atelier) -->
+      <div class="border-b-dashed py-1">
         <div class="border-box text-xxs font-bold uppercase flex justify-between">
-          <span>1. TRADE-IN INTAKE</span>
-          <span>RECEIVED</span>
+          <span>1. APPAREIL REPRIS DU CLIENT</span>
+          <span>REÇU</span>
         </div>
         <div class="text-xs py-05">
-          <div class="font-bold">${exchange.trade_in_product_name || 'Customer Trade-in'}</div>
+          <div class="font-bold">${exchange.trade_in_product_name || 'Appareil Client'}</div>
           <div class="flex justify-between text-xxs py-05">
-            <span>IMEI:</span>
+            <span>IMEI :</span>
             <span class="mono font-bold">${exchange.trade_in_imei}</span>
           </div>
           <div class="flex justify-between text-xxs py-05">
-            <span>Condition:</span>
-            <span>Grade ${exchange.trade_in_condition || 'N/A'}${
-              exchange.trade_in_battery_health ? ` • ${exchange.trade_in_battery_health}% Batt` : ''
+            <span>État :</span>
+            <span>Grade ${exchange.trade_in_condition || 'Standard'}${
+              exchange.trade_in_battery_health ? ` • ${exchange.trade_in_battery_health}% Batterie` : ''
             }</span>
           </div>
           <div class="flex justify-between text-xs font-bold pt-1 border-b-dotted">
-            <span>Trade-In Credit:</span>
-            <span>MAD ${tradeInVal}</span>
+            <span>Valeur de reprise :</span>
+            <span class="mono">${tradeInVal} ${storeInfo.currency}</span>
           </div>
         </div>
       </div>
 
-      <!-- Section 2: Replacement Device (Delivered) -->
-      <div class="border-b-dashed">
+      <!-- Volet 2: Nouvel Appareil Cédé (Sortie Boutique) -->
+      <div class="border-b-dashed py-1">
         <div class="border-box text-xxs font-bold uppercase flex justify-between">
-          <span>2. REPLACEMENT DELIVERED</span>
-          <span>HANDED OVER</span>
+          <span>2. NOUVEL APPAREIL LIVRÉ</span>
+          <span>CÉDÉ</span>
         </div>
         <div class="text-xs py-05">
           <div class="font-bold">${replacementName}</div>
           ${
             exchange.new_device_imei_1
               ? `<div class="flex justify-between text-xxs py-05">
-                   <span>IMEI:</span>
+                   <span>IMEI :</span>
                    <span class="mono font-bold">${exchange.new_device_imei_1}</span>
                  </div>`
               : ''
           }
-          <div class="flex justify-between text-xxs py-05">
-            <span>Inventory Status:</span>
-            <span>SOLD / ASSIGNED</span>
-          </div>
           <div class="flex justify-between text-xs font-bold pt-1 border-b-dotted">
-            <span>Device Price:</span>
-            <span>MAD ${newPrice}</span>
+            <span>Prix appareil boutique :</span>
+            <span class="mono">${newPrice} ${storeInfo.currency}</span>
           </div>
         </div>
       </div>
 
-      <!-- Section 3: Financial Settlement -->
-      <div class="border-b-dashed text-xs">
-        <div class="text-xxs font-bold uppercase mb-1">VALUATION SETTLEMENT</div>
+      <!-- Volet 3: Rapprochement Financier -->
+      <div class="border-b-dashed text-xs py-1">
+        <div class="text-xxs font-bold uppercase mb-1">RÈGLEMENT & SOLDE ÉCHANGE</div>
         <div class="flex justify-between py-05">
-          <span>Replacement Price:</span>
-          <span>MAD ${newPrice}</span>
+          <span>Prix nouvel appareil :</span>
+          <span class="mono">${newPrice} ${storeInfo.currency}</span>
         </div>
-        <div class="flex justify-between py-05">
-          <span>Less Trade-In Credit:</span>
-          <span>- MAD ${tradeInVal}</span>
+        <div class="flex justify-between py-05 text-emerald-700">
+          <span>Déduction valeur reprise :</span>
+          <span class="mono font-bold">- ${tradeInVal} ${storeInfo.currency}</span>
         </div>
         <div class="flex justify-between font-bold text-sm border-b-double py-1 mt-1">
-          <span>${settlementLabel}:</span>
-          <span>${exchange.financial_direction === 'EVEN' ? 'MAD 0.00' : `MAD ${diff}`}</span>
+          <span>${settlementLabel} :</span>
+          <span class="mono">${exchange.financial_direction === 'EVEN' ? `0.00 ${storeInfo.currency}` : `${diff} ${storeInfo.currency}`}</span>
         </div>
         <div class="flex justify-between text-xxs py-05">
-          <span>Settlement Status:</span>
-          <span class="font-bold">SETTLED & CONFIRMED</span>
+          <span>Statut :</span>
+          <span class="font-bold text-emerald-700">RÉGLÉ & CLÔTURÉ</span>
         </div>
       </div>
 
-      <!-- Section 4: Customer Terms & Acknowledgment -->
-      <div class="text-center text-xxs muted pt-1">
-        <div class="font-bold uppercase text-xs mb-1">CUSTOMER ACKNOWLEDGMENT</div>
-        <div class="py-05">• Trade-in device is certified legitimate personal property.</div>
-        <div class="py-05">• 3-month store warranty applies to replacement device.</div>
-        <div class="py-05">• Keep this original receipt for warranty claims.</div>
-        <div class="font-bold text-xs mt-2">THANK YOU FOR YOUR BUSINESS!</div>
-        <div class="mono text-xxs mt-1 font-bold">*** ${exchange.exchange_number} ***</div>
+      <!-- Volet 4: Conditions & Pied de reçu boutique -->
+      <div class="text-center text-xxs pt-1">
+        <div class="my-1 text-gray-700">
+          <p>• Le client atteste être le propriétaire légitime de l'appareil cédé.</p>
+          <p>• Garantie légale boutique appliquée sur le nouvel appareil.</p>
+        </div>
+        <div class="text-center text-xxs mt-3 pt-2 border-t-dashed space-y-1">
+          <p class="font-bold whitespace-pre-line">${storeInfo.footerMessage}</p>
+          <p class="text-[9px] text-gray-700">${storeInfo.disclaimer}</p>
+        </div>
       </div>
     </div>
   `;
@@ -164,7 +172,7 @@ export function generateExchangeReceiptHtml(exchange: Exchange, operator?: any):
 export function printExchangeReceipt(exchange: Exchange, operator?: any) {
   if (!exchange) return;
   const html = generateExchangeReceiptHtml(exchange, operator);
-  printThermalReceipt(html, `Exchange_Receipt_${exchange.exchange_number}`);
+  printThermalReceipt(html, `Bon_Echange_${exchange.exchange_number}`);
 }
 
 export default function ExchangeReceiptPrint({

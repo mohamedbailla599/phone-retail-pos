@@ -6,7 +6,7 @@ import { useRequireOperator } from '../../hooks/useRequireOperator';
 import { exchangeApi } from '../../api/exchanges';
 import type { Exchange } from '../../api/exchanges';
 import { useAuthStore } from '../../store/authStore';
-import ExchangeReceiptPrint, { printExchangeReceipt } from './ExchangeReceiptPrint';
+import ExchangeReceiptPrint, { printExchangeReceipt, generateExchangeReceiptHtml } from './ExchangeReceiptPrint';
 import {
   CheckCircle2,
   AlertCircle,
@@ -243,7 +243,7 @@ export function SettleExchangeModal({
                   className="flex items-center gap-2"
                 >
                   {showReceiptPreview ? <EyeOff className="w-4 h-4 text-gold" /> : <Eye className="w-4 h-4 text-gold" />}
-                  {showReceiptPreview ? 'Hide Preview' : 'Preview Thermal Ticket'}
+                  {showReceiptPreview ? 'Masquer l’aperçu' : 'Aperçu du ticket'}
                 </Button>
                 <Button
                   variant="primary"
@@ -251,55 +251,22 @@ export function SettleExchangeModal({
                   className="flex items-center gap-2 font-bold"
                 >
                   <Printer className="w-4 h-4" />
-                  Print Thermal Receipt
+                  Imprimer le Reçu Thermique
                 </Button>
                 <Button
                   variant="secondary"
                   onClick={onClose}
                 >
-                  Close & Done
+                  Fermer
                 </Button>
               </div>
 
               {/* On-Screen Thermal Receipt Preview */}
               {showReceiptPreview && (
-                <div className="mt-4 p-5 bg-white text-black rounded-xl max-w-[300px] mx-auto text-left font-mono text-[11px] leading-tight border border-gray-300 shadow-2xl">
-                  <div className="text-center font-bold text-xs uppercase mb-0.5">BIGHRISSEN PHONE</div>
-                  <div className="text-center text-[10px] text-gray-700 mb-2 pb-2 border-b border-black border-dashed">
-                    DEVICE EXCHANGE & TRADE-IN
-                  </div>
-                  <div className="space-y-0.5 mb-2 pb-2 border-b border-black border-dashed text-[10px]">
-                    <div>RC#: {exchange.exchange_number}</div>
-                    <div>DATE: {new Date().toLocaleDateString('en-GB')}</div>
-                    <div>OPERATOR: {operator?.display_name || operator?.username || 'Staff'}</div>
-                    <div className="pt-0.5">CUSTOMER: {exchange.customer_name}</div>
-                    <div>TEL: {exchange.customer_phone}</div>
-                  </div>
-                  <div className="mb-2 pb-2 border-b border-black border-dashed space-y-0.5 text-[10px]">
-                    <div className="font-bold">1. TRADE-IN RECEIVED:</div>
-                    <div className="font-semibold">{exchange.trade_in_product_name}</div>
-                    <div>IMEI: {exchange.trade_in_imei}</div>
-                    <div>Grade {exchange.trade_in_condition} • {exchange.trade_in_battery_health ? `${exchange.trade_in_battery_health}%` : 'N/A'}</div>
-                    <div className="font-bold pt-0.5">Credit: MAD {parseFloat(exchange.trade_in_value).toFixed(2)}</div>
-                  </div>
-                  <div className="mb-2 pb-2 border-b border-black border-dashed space-y-0.5 text-[10px]">
-                    <div className="font-bold">2. REPLACEMENT DELIVERED:</div>
-                    <div className="font-semibold">{exchange.new_device_product_name || `Store Device #${exchange.new_device}`}</div>
-                    {exchange.new_device_imei_1 && <div>IMEI: {exchange.new_device_imei_1}</div>}
-                    <div className="font-bold pt-0.5">Price: MAD {parseFloat(exchange.new_device_price).toFixed(2)}</div>
-                  </div>
-                  <div className="mb-2 pb-2 border-b border-black border-dashed font-bold text-[11px]">
-                    <div className="flex justify-between">
-                      <span>{exchange.financial_direction === 'CUSTOMER_PAYS' ? 'CUSTOMER PAID:' : 'BALANCE:'}</span>
-                      <span>MAD {parseFloat(exchange.difference_amount).toFixed(2)}</span>
-                    </div>
-                  </div>
-                  <div className="text-[9px] text-center text-gray-700 leading-normal pt-1">
-                    3-month store warranty applies.
-                    <br />
-                    Keep receipt for warranty claims.
-                  </div>
-                </div>
+                <div
+                  className="mt-4 p-5 bg-white text-black rounded-xl max-w-[320px] mx-auto text-left font-mono text-[11px] leading-tight border border-gray-300 shadow-2xl"
+                  dangerouslySetInnerHTML={{ __html: generateExchangeReceiptHtml(exchange, operator) }}
+                />
               )}
             </div>
           ) : (

@@ -10,8 +10,9 @@ import PriceDisplay from '../components/ui/PriceDisplay';
 import OperatorSelectionModal from '../components/ui/OperatorSelectionModal';
 import PaymentModal from '../components/ui/PaymentModal';
 import PendingPaymentModal from '../components/ui/PendingPaymentModal';
-import ReceiptPrint from '../components/ui/ReceiptPrint';
 import SelectCustomerModal from '../components/customers/SelectCustomerModal';
+import ReceiptPrint from '../components/ui/ReceiptPrint';
+import { printPOSReceipt } from '../utils/printPOSReceipt';
 import { type Customer } from '../api/customers';
 import {
   Search,
@@ -391,10 +392,8 @@ export default function POSPage() {
   };
 
   const handlePrint = () => {
-    const originalTitle = document.title;
-    document.title = "Bighrissen Phone — Receipt";
-    window.print();
-    document.title = originalTitle;
+    if (!transaction) return;
+    printPOSReceipt(transaction, operator);
   };
 
   const startNewSale = () => {

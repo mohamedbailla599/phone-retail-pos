@@ -3,6 +3,113 @@
  * Isolates receipt printing inside a hidden iframe to prevent modal, background,
  * and SPA layout clutter from bleeding into the browser print dialog.
  */
+import JsBarcode from 'jsbarcode';
+import { useSettingsStore } from '../store/settingsStore';
+import { STORE_LOGO_DATA_URL } from './logoBase64';
+
+export interface ReceiptStoreInfo {
+  storeName: string;
+  storeAddress: string;
+  storePhone: string;
+  currency: string;
+  receiptPrefix: string;
+  footerMessage: string;
+  disclaimer: string;
+}
+
+/**
+ * Retrieves the live, user-configured store settings from Zustand store
+ * with sensible fallbacks matching the active establishment.
+ */
+export function getReceiptStoreInfo(): ReceiptStoreInfo {
+  const settings = useSettingsStore.getState().settings;
+  return {
+    storeName: settings?.store_name || 'BIGHRISSEN PHONE',
+    storeAddress: settings?.address || 'Boulevard Youssef Bin Tachfine, Guelmim',
+    storePhone: settings?.phone_number || '+212 617-646824',
+    currency: settings?.currency || 'DH',
+    receiptPrefix: settings?.receipt_prefix || 'BP',
+    footerMessage:
+      settings?.receipt_footer_message ||
+      'Merci pour votre visite ! Les articles vendus sont garantis selon conditions.',
+    disclaimer: 'Aucun remboursement ou échange sans ce ticket.',
+  };
+}
+
+/**
+ * Generates an SVG string representation of a Code 128 barcode
+ */
+export function generateBarcodeSvg(value: string, height: number = 30, width: number = 1.3): string {
+  if (!value) return '';
+  try {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    JsBarcode(svg, value, {
+      format: 'CODE128',
+      width,
+      height,
+      displayValue: false,
+      margin: 0,
+      background: '#ffffff',
+      lineColor: '#000000',
+    });
+    return svg.outerHTML;
+  } catch (err) {
+    console.error('Error generating barcode SVG:', err);
+    return '';
+  }
+}
+
+/**
+ * Standardized store header applied across all thermal receipts (80mm)
+ * Features the official circular badge logo on the left and store credentials on the right.
+ */
+export function renderReceiptHeader(subTitle?: string, showLogo: boolean = true): string {
+  const info = getReceiptStoreInfo();
+
+  if (showLogo) {
+    return `
+      <div class="receipt-header-row">
+        <div class="receipt-logo-col">
+          <img src="${STORE_LOGO_DATA_URL}" alt="Logo" class="receipt-logo-img" />
+        </div>
+        <div class="receipt-info-col">
+          <div class="font-bold text-base uppercase leading-tight">${info.storeName}</div>
+          ${subTitle ? `<div class="text-xs font-semibold uppercase mt-0.5 leading-tight">${subTitle}</div>` : ''}
+          ${info.storeAddress ? `<div class="text-xxs mt-0.5 leading-tight">${info.storeAddress}</div>` : ''}
+          ${info.storePhone ? `<div class="text-xxs leading-tight">Tél : ${info.storePhone}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="text-center border-b-dashed pb-2">
+      <div class="font-bold text-base uppercase">${info.storeName}</div>
+      ${subTitle ? `<div class="text-xs font-semibold uppercase mt-0.5">${subTitle}</div>` : ''}
+      ${info.storeAddress ? `<div class="text-xxs">${info.storeAddress}</div>` : ''}
+      ${info.storePhone ? `<div class="text-xxs">Tél : ${info.storePhone}</div>` : ''}
+    </div>
+  `;
+}
+
+/**
+ * Standardized store footer applied across all thermal receipts (80mm)
+ */
+export function renderReceiptFooter(additionalNotices?: string[]): string {
+  const info = getReceiptStoreInfo();
+  const noticesHtml =
+    additionalNotices && additionalNotices.length > 0
+      ? `<div class="my-1">${additionalNotices.map((n) => `<p>${n}</p>`).join('')}</div>`
+      : '';
+
+  return `
+    <div class="text-center text-xxs mt-3 pt-2 border-t-dashed space-y-1">
+      <p class="font-bold whitespace-pre-line">${info.footerMessage}</p>
+      ${noticesHtml}
+      <p class="text-[9px] text-gray-700">${info.disclaimer}</p>
+    </div>
+  `;
+}
 
 export function printThermalReceipt(contentHtml: string, title: string = 'Receipt') {
   // Check if print iframe already exists, or create a new one
@@ -33,7 +140,7 @@ export function printThermalReceipt(contentHtml: string, title: string = 'Receip
   doc.open();
   doc.write(`
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="fr">
       <head>
         <meta charset="utf-8" />
         <title>${title}</title>
@@ -70,10 +177,45 @@ export function printThermalReceipt(contentHtml: string, title: string = 'Receip
           .text-sm { font-size: 12px; }
           .text-base { font-size: 13px; }
           .text-lg { font-size: 14px; }
+          .receipt-header-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px dashed #000000;
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+          }
+          .receipt-logo-col {
+            flex-shrink: 0;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .receipt-logo-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1.5px solid #000000;
+            display: block;
+          }
+          .receipt-info-col {
+            flex: 1;
+            text-align: left;
+            min-width: 0;
+          }
+          .leading-tight { line-height: 1.25; }
           .border-b-dashed {
             border-bottom: 1px dashed #000000;
             padding-bottom: 5px;
             margin-bottom: 5px;
+          }
+          .border-t-dashed {
+            border-top: 1px dashed #000000;
+            padding-top: 5px;
+            margin-top: 5px;
           }
           .border-b-dotted {
             border-bottom: 1px dotted #444444;
